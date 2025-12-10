@@ -1,54 +1,87 @@
+// Copyright 2024 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/**
+ * Responds to HTTP GET requests by serving the 'index.html' file.
+ * This is the entry point for the web app.
+ */
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('index');
 }
 
+/**
+ * Generates a summary of meetings, tasks, and activities for a specified number of days.
+ *
+ * @param {number} days The number of past days to generate the summary for.
+ * @returns {string} The generated summary text.
+ */
 function generateSummary(days) {
-  meetings = getMeetings(days); // Pass days to getMeetings()
+  // Get meetings for the specified number of days.
+  const meetings = getMeetings(days);
+  const myWeek = generate("Summarize the following meetings from my upcoming week in natural language, using plaintext formatting and newlines: " + meetings);
 
-  myWeek = generate("take all of these meetings from my upcoming week give me a short summary it for me in natural language using plaintext formatting and newlines: " + meetings);
-  tasks = getRecentlyUpdatedTasks(days); // Pass days to getRecentlyUpdatedTasks()
-  myPrompt = "here is a list with my tasks that has been updated in the past " + days + " days, with information which are ongoing (status=needsAction) and completed (status=completed). summarise them : " + tasks;
-  myTasks = generate(myPrompt);
-  documentTitle = String(Date());
-  textToInsert = myWeek;
-  text = generateSnippets("I am Max Wijnbladh, customer engineer for Google Workspace. I want you to summarise my activities from the past " + days + " days in a natural way in a first-person format, as if written by myself. It should be in past-tense and should focus on activities related to customers. These are the past weeks meetings (include a short summary of the meeting and outcomes using the notes if available): " + myWeek + " and my past tasks (ongoing and completed): " + myTasks + " as well as specific activities I have started and completed: " + getActivities(days)); 
+  // Get recently updated tasks.
+  const tasks = getRecentlyUpdatedTasks(days);
+  const myPrompt = `Here is a list of my tasks that have been updated in the past ${days} days, with their status (ongoing or completed). Please summarize them: ${tasks}`;
+  const myTasks = generate(myPrompt);
+
+  // Generate a comprehensive summary.
+  const documentTitle = String(new Date());
+  const textToInsert = myWeek;
+  const text = generateSnippets(`I am Max Wijnbladh, a customer engineer for Google Workspace. I want you to summarize my activities from the past ${days} days in a first-person format, as if written by myself. The summary should be in the past tense and focus on customer-related activities. Here are my meetings (including a short summary and outcomes from the notes, if available): ${myWeek}, my recent tasks (ongoing and completed): ${myTasks}, and other specific activities I have started and completed: ${getActivities(days)}`); 
+  
   Logger.log(text);
-  return text; // Return the generated text
+  return text; // Return the final generated summary.
 }
 
+/**
+ * Checks if a specific person (Mawi) attended a meeting.
+ *
+ * @param {Array<object>} attendees An array of attendee objects from a Google Calendar event.
+ * @returns {boolean} True if Mawi attended the meeting, false otherwise.
+ */
 function didMawiAttend(attendees) {
   for (const attendee of attendees) {
     if (attendee.email === "mawi@google.com") {
       const response = attendee.responseStatus.toLowerCase();
-
-      // Google Calendar Specific Responses
       if (response === "accepted" || response === "yes") {
-        // "needsAction" is included for those who haven't responded yet but were invited
         return true;
       } else if (response === "declined" || response === "no") {
         return false;
       } else {
-        // Handle other responses (e.g., "tentative", "maybe") as needed 
-        return false; // or some other logic based on your requirements
+        return false; // Assumes non-responses mean non-attendance.
       }
     }
   }
-  return false; // Mawi not found in the list
+  return false; // Mawi was not found in the attendee list.
 }
 
-
+/**
+ * Retrieves a list of meetings from the user's calendar for a specified number of days.
+ *
+ * @param {number} days The number of past days to retrieve meetings from.
+ * @returns {Array<string>} A list of meetings with their details.
+ */
 function getMeetings(days) {
-  //enter username here
-  var ldap = "mawi"
-  var calendarId = ldap.concat('@google.com')
-  if (days = null)
-    days = 7
+  const ldap = "mawi";
+  const calendarId = `${ldap}@google.com`;
+  days = days || 7; // Default to 7 days if not provided.
 
-  //define the time interval to fetch meetings from
-  var toDate =  (new Date()).toISOString();
-  var fromDate = (new Date(new Date().getTime() - (days * 24 * 60 * 60 * 1000))).toISOString(); // Use 'days' to calculate fromDate
+  const toDate = (new Date()).toISOString();
+  const fromDate = (new Date(new Date().getTime() - (days * 24 * 60 * 60 * 1000))).toISOString();
 
-  var optionalArgs = {
+  const optionalArgs = {
     timeMax: toDate,
     timeMin: fromDate,
     showDeleted: false,
@@ -57,33 +90,24 @@ function getMeetings(days) {
     orderBy: 'startTime'
   };
 
-  var response = Calendar.Events.list(calendarId, optionalArgs);
-  var events = response.items;
-  var meetings = []
+  const response = Calendar.Events.list(calendarId, optionalArgs);
+  const events = response.items;
+  const meetings = [];
 
   if (events.length > 0) {
-    for (i = 0; i < events.length; i++) {
-      var event = events[i];
-      if (event.summary != undefined && !event.summary.includes("Holiday") && !event.summary.includes("OOO") && event.attendees) {
-        if (didMawiAttend(event.attendees) == true) {
-          Logger.log(event)
-
-          if (event.attachments != null && event.attachments.find(attachment => attachment.title.includes('aksdnasnd'))) {
-            Logger.log("Found notes for meeting: " + event.summary)
+    for (let i = 0; i < events.length; i++) {
+      const event = events[i];
+      if (event.summary && !event.summary.includes("Holiday") && !event.summary.includes("OOO") && event.attendees) {
+        if (didMawiAttend(event.attendees)) {
+          if (event.attachments && event.attachments.find(attachment => attachment.title.includes('Notes by Gemini'))) {
             const match = (event.attachments.find(attachment => attachment.title.includes('Notes by Gemini')).fileUrl).match(/\/d\/([^/]+)\//);
-            docId = match[1];
-            docId = makeCopy(docId)
-            Logger.log(docId)
-            notes = null
-            summarisedNotes = "None"
-            notes = getDocText(docId)
-            summarisedNotes = generate("This is a document with meeting notes, summarise them in a few sentences: " + notes)
-            Logger.log(summarisedNotes)
-
-            meetings.push(event.summary + ": " + event.description + "Meeting Notes: " + summarisedNotes)
-          }
-          else {
-            meetings.push(event.summary + ": " + event.description)
+            let docId = match[1];
+            docId = makeCopy(docId);
+            let notes = getDocText(docId);
+            let summarisedNotes = generate("Summarize these meeting notes in a few sentences: " + notes);
+            meetings.push(`${event.summary}: ${event.description} Meeting Notes: ${summarisedNotes}`);
+          } else {
+            meetings.push(`${event.summary}: ${event.description}`);
           }
         }
       }
@@ -91,36 +115,34 @@ function getMeetings(days) {
   } else {
     Logger.log('No upcoming events found.');
   }
-  Logger.log(meetings)
-  return meetings
+  return meetings;
 }
 
+/**
+ * Retrieves a list of tasks that have been updated within a specified number of days.
+ *
+ * @param {number} days The number of past days to check for updated tasks.
+ * @returns {string} A JSON string representing the list of recent tasks.
+ */
 function getRecentlyUpdatedTasks(days) {
   const taskLists = Tasks.Tasklists.list().getItems();
   const recentTasks = [];
-  const daysAgo = new Date(); // Current time
-  daysAgo.setDate(daysAgo.getDate() - days); // Go back 'days' days
+  const daysAgo = new Date();
+  daysAgo.setDate(daysAgo.getDate() - days);
 
   taskLists.forEach(taskList => {
     const tasks = Tasks.Tasks.list(taskList.getId()).getItems();
-    Logger.log(taskList.getId())
-    Logger.log(taskList)
     tasks.forEach(task => {
-      const updatedDate = new Date(task.getUpdated()); // Get update time
-      if (updatedDate >= daysAgo) { // Check if updated in past 'days' days
-          Logger.log(task)
+      const updatedDate = new Date(task.getUpdated());
+      if (updatedDate >= daysAgo) {
         recentTasks.push({
           title: task.title,
-          updated: updatedDate,  // Store as Date object for easier comparison later
-          //notes: task.selfLink(),
-          completed: task.getCompleted(), // Get completion time (if any)
+          updated: updatedDate,
+          completed: task.getCompleted(),
         });
       }
     });
   });
 
-  Logger.log(recentTasks);
   return JSON.stringify(recentTasks);
 }
-
-// ... other functions (generate, getActivities, makeCopy, getDocText, etc.)

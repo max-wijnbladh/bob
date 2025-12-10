@@ -1,92 +1,84 @@
-function createFeedCard2(account_name = "", summary = "", opportunity_details = "", spaceName = "spaces/AAAA_x3ZYqw", icon = "", date = new Date().ToShortDateString(), vector_url = "google.com", execSummary = "docs.google.com"){
-Utilities.sleep(3000);
-token = getToken_()
-Logger.log(spaceName)
-console.log("account_name:", account_name);
-console.log("icon:", icon);
-console.log("summary:", summary);
-console.log("date:", date);
-console.log("vector_url:", vector_url);
-console.log("spaceName:", spaceName);
+// Copyright 2024 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
+/**
+ * Creates and posts a card to a Google Chat space with opportunity updates.
+ *
+ * @param {string} account_name The name of the account.
+ * @param {string} summary A summary of the opportunity update.
+ * @param {string} opportunity_details Additional details about the opportunity.
+ * @param {string} spaceName The name of the chat space to post to.
+ * @param {string} icon An icon URL for the card header.
+ * @param {string} date The date of the update.
+ * @param {string} vector_url A URL for the 'Vector' button.
+ * @param {string} execSummary A URL for the 'Executive Summary' button.
+ */
+function createFeedCard2(account_name = "", summary = "", opportunity_details = "", spaceName = "spaces/AAAA_x3ZYqw", icon = "", date = new Date().toLocaleDateString(), vector_url = "google.com", execSummary = "docs.google.com"){
+  Utilities.sleep(3000);
+  const token = getToken_();
 
   const message = {
-  "cardsV2": [
-    {
-      "card": {
-        "header": {
-          "title": account_name,
-          "subtitle": opportunity_details,
-          "imageUrl": icon,
-          "imageType": "CIRCLE"
+    cardsV2: [{
+      card: {
+        header: {
+          title: account_name,
+          subtitle: opportunity_details,
+          imageUrl: icon,
+          imageType: "CIRCLE"
         },
-        "sections": [
+        sections: [
           {
-            "collapsible": true,
-            "uncollapsibleWidgetsCount": 3,
-            "header": "Opportunity Update",
-            "widgets": [
-                {
-                  "textParagraph": {  // Use textParagraph for longer text
-                    "text": summary
-                  }
-                },
-                                {
-                  "divider": {} // Add the divider here
-                }
+            collapsible: true,
+            uncollapsibleWidgetsCount: 3,
+            header: "Opportunity Update",
+            widgets: [
+              { textParagraph: { text: summary } },
+              { divider: {} }
             ]
           },
           {
-              "widgets": [
+            widgets: [{
+              buttonList: {
+                buttons: [
                   {
-                      "buttonList": {
-                          "buttons": [
-                              {
-                                  "text": "Vector",
-                                  "icon": {
-                                      "knownIcon": "OPEN_IN_NEW"
-                                  },
-                                  "onClick": {
-                                      "openLink": {
-                                          "url": vector_url
-                                      }
-                                  }
-                              },
-                                                            {
-                                  "text": "Executive Summary",
-                                  "icon": {
-                                      "knownIcon": "DESCRIPTION"
-                                  },
-                                  "onClick": {
-                                      "openLink": {
-                                          "url": execSummary
-                                      }
-                                  }
-                              }
-                          ]
-                      }
+                    text: "Vector",
+                    icon: { knownIcon: "OPEN_IN_NEW" },
+                    onClick: { openLink: { url: vector_url } }
+                  },
+                  {
+                    text: "Executive Summary",
+                    icon: { knownIcon: "DESCRIPTION" },
+                    onClick: { openLink: { url: execSummary } }
                   }
-              ]
+                ]
+              }
+            }]
           }
         ]
       }
-    }
-  ]
-}
-  parameters = {}
-  Logger.log(message)
-  Logger.log(spaceName)
-  Chat.Spaces.Messages.create(message, spaceName, parameters, { 'Authorization': 'Bearer ' + token })
-}
+    }]
+  };
 
-
+  Chat.Spaces.Messages.create(message, spaceName, {}, { Authorization: `Bearer ${token}` });
+}
 
 /**
  * Creates a map from a 2D array, using a specified column as the key.
  *
- * @param {Array[][]} array - The 2D array.
- * @param {number} keyIndex - The index of the column to use as the key.
- * @return {Map} - A map with keys from the specified column.
+ * @param {Array<Array<any>>} array The 2D array to convert.
+ * @param {number} keyIndex The index of the column to use as the key.
+ * @return {Map<any, any>} A map with keys from the specified column.
  */
 function createMapFromArray(array, keyIndex) {
   const map = new Map();
@@ -97,9 +89,12 @@ function createMapFromArray(array, keyIndex) {
   return map;
 }
 
-
-
-// Example usage:
+/**
+ * Compares two Google Sheets and logs the changes for tracked columns.
+ *
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet1 The first sheet to compare.
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet2 The second sheet to compare.
+ */
 function compareSheets(sheet1, sheet2) {
   const columnsToTrack = [
     "opportunities.forecast_category_name",
@@ -113,42 +108,47 @@ function compareSheets(sheet1, sheet2) {
 
   const changes = compareSheetsAndLogChanges(sheet1, sheet2, columnsToTrack);
 
-  Logger.log(changes);
   for (const id in changes) {
-    Logger.log(`Changes for opportunity ID ${id}:`);
-    Logger.log(JSON.stringify(changes[id], null, 2));
-    const changeLog = generate(
-      "Do a one sentece summary of the changes in the before and after column, without referencing the id" +
-        JSON.stringify(changes[id], null, 2)
-    );
+    const changeLog = generate(`Summarize the following changes in one sentence, without referencing the id: ${JSON.stringify(changes[id], null, 2)}`);
     changes[id].id = id;
     changes[id].changeLog = changeLog;
-    changes[id].date = new Date()
+    changes[id].date = new Date();
     writeJsonToSheet(changes[id]);
   }
 }
 
+/**
+ * A test function to log the character codes of a column name.
+ */
 function testColumnName() {
-  const columnNameFromSheet = "opportunities.next_step"; // Paste the copied value here
-  Logger.log(`Column name from sheet: ${columnNameFromSheet}`);
-  Logger.log(`Character codes: ${getColumnCodes(columnNameFromSheet)}`);
-  Logger.log(`Is equal to "opportunities.next_step": ${columnNameFromSheet === "opportunities.next_step"}`);
+  const columnNameFromSheet = "opportunities.next_step";
+  Logger.log(`Column name: ${columnNameFromSheet}, Character codes: ${getColumnCodes(columnNameFromSheet)}`);
 }
 
+/**
+ * Gets the character codes of a string.
+ *
+ * @param {string} str The string to get the character codes from.
+ * @return {string} A string of character codes.
+ */
 function getColumnCodes(str) {
   let codes = "";
   for (let i = 0; i < str.length; i++) {
-    codes += str.charCodeAt(i) + " ";
+    codes += `${str.charCodeAt(i)} `;
   }
   return codes;
 }
 
+/**
+ * A simplified function to compare columns in a sheet with a list of tracked columns.
+ *
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet1 The first sheet (unused).
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet2 The sheet with the header row to check.
+ * @param {Array<string>} columnsToTrack A list of column names to track.
+ */
 function compareSheetsAndLogChangesSimplified(sheet1, sheet2, columnsToTrack) {
   const header2 = sheet2.getDataRange().getValues()[0];
-
-  for (let j = 0; j < header2.length; j++) {
-    const columnName = header2[j];
-    Logger.log(`Column name: ${columnName}`);
-    Logger.log(`Includes: ${columnsToTrack.includes(columnName)}`);
+  for (const columnName of header2) {
+    Logger.log(`Column: ${columnName}, Included: ${columnsToTrack.includes(columnName)}`);
   }
 }

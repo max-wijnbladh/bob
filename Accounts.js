@@ -1,9 +1,36 @@
+// Copyright 2024 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/**
+ * Retrieves the domain name for a given company.
+ * @param {string} account_name The name of the company.
+ * @returns {string} The domain name of the company.
+ */
 function getDomain(account_name) {
+  // Uses a generative AI to find the domain name.
   domain = generate("Return the domain name of the following company, and nothing else: " + account_name)
   return domain
 }
 
+/**
+ * Retrieves a short summary of a company's business.
+ *
+ * @param {string} companyName The name of the company to look up.
+ * @returns {object} A JSON object containing the company's summary, or an error object on failure.
+ */
 function getCompanyDetails(companyName) {
+  // Note: The companyName is currently hardcoded for demonstration purposes.
   companyName = "Max Burger"
   try {
     const prompt = `Provide the following information about ${companyName} in JSON format, using the specified field names:
@@ -11,15 +38,15 @@ function getCompanyDetails(companyName) {
       "ai.account.summary": "Short summary about the business",
     }`;
 
-    // Call Gemini
+    // Call the Gemini API to get the company summary.
     const responseString = gemini(prompt, "gemini-2.0-flash");
     Logger.log(responseString);
 
-    // Parse the JSON response
+    // Parse the JSON response.
     const companyDetails = JSON.parse(cleanJSONString2(responseString));
     Logger.log(companyDetails);
 
-    // Return the JSON object
+    // Return the JSON object.
     return companyDetails;
   } catch (e) {
     Logger.log("Error retrieving company details: " + e);
