@@ -1,5 +1,4 @@
 
-
 function getWeeklyMessages(spaceName = "spaces/AAAA_x3ZYqw", icon = "test", vector_url = "test", account_name_param = "test", context = "none", next_steps_param = "", tips_param = "", execSummary_param = "", overview = "overview test") {
   // Note: renamed some input parameters like account_name to account_name_param to avoid conflict
   // if these names are also used as global variables for card creation elsewhere.
@@ -154,15 +153,15 @@ function getWeeklyMessages(spaceName = "spaces/AAAA_x3ZYqw", icon = "test", vect
 // }
 
 function appendWeeklyDigest(text) {
-  var docId = "1d7Y-2NN3sFsvQv0pyRC6dy3lgtA4_StHvuOce_1Qlrw";
-  var doc = DocumentApp.openById(docId);
-  var body = doc.getBody();
-  var date = new Date();
+  const docId = PropertiesService.getScriptProperties().getProperty('WEEKLY_DIGEST_DOC_ID') || "1d7Y-2NN3sFsvQv0pyRC6dy3lgtA4_StHvuOce_1Qlrw";
+  const doc = DocumentApp.openById(docId);
+  const body = doc.getBody();
+  const date = new Date();
 
   // Format the date and week number
-  var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-  var formattedDate = date.toLocaleDateString("en-US", options);
-  var weekNumber = getWeekNumber(date);
+  const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+  const formattedDate = date.toLocaleDateString("en-US", options);
+  const weekNumber = getWeekNumber(date);
 
   // Insert the header at the top
   body.insertParagraph(0, "Weekly Digest - Week " + weekNumber + ", " + formattedDate).setHeading(DocumentApp.ParagraphHeading.HEADING1);
@@ -220,4 +219,3 @@ function getMeetingDebriefTextFromCard(message) {
   }
   return null; // Return null if it's not a debrief card or parsing fails
 }
-

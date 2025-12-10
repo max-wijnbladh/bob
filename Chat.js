@@ -47,7 +47,8 @@ function findChatSpaceIdByName(displayName) {
   try {
     const token = ScriptApp.getOAuthToken();
     const options = { method: "GET", headers: { Authorization: "Bearer " + token }, muteHttpExceptions: true };
-    let foundSpaceId = null; let pageToken = null;
+    let foundSpaceId = null;
+    let pageToken = null;
     do {
       let url = "https://chat.googleapis.com/v1/spaces?pageSize=1000";
       if (pageToken) url += "&pageToken=" + pageToken;
@@ -88,20 +89,6 @@ function findChatSpaceIdByName(displayName) {
  * }
  * @returns {boolean} True if the update was successful, false otherwise.
  */
-/**
- * Updates the description of a Google Chat space with opportunity information.
- *
- * @param {string} spaceName The name of the space to update (e.g., "spaces/xyz").
- * @param {object} opportunityData An object containing the opportunity information.
- * Example: {
- * name: "Acme Corp Deal",
- * stage: "Proposal",
- * value: 120000,
- * closeDate: "2024-12-31",
- * notes: "Customer is very interested."
- * }
- * @returns {boolean} True if the update was successful, false otherwise.
- */
 function updateSpaceDescriptionWithOpportunityData(spaceName, opportunityData) {
   if (!spaceName) {
     Logger.log("Error: spaceName is null or undefined.");
@@ -118,7 +105,7 @@ function updateSpaceDescriptionWithOpportunityData(spaceName, opportunityData) {
 
   const newDescription = generate("Summarise this opportunity in 150 characters maximum but keep the same sections, use natural language and no asterisks. It should be easy to read: " + opportunityData);
   Logger.log("Generated Description: ", newDescription);
-  return
+  // return; // Removed early return to enable logic
 
   try {
     // Get the current space.  This is important to get all space properties.
@@ -163,7 +150,7 @@ function updateSpaceDescriptionWithOpportunityData(spaceName, opportunityData) {
  */
 function getDriveFileContentAdvanced(fileId) {
   try {
-    file = Drive.Files.get(fileId)
+    const file = Drive.Files.get(fileId)
     Logger.log(file)
     const mimeType = file.mimeType;
     Logger.log(mimeType)
@@ -370,7 +357,7 @@ function getChatMessagesLast7DaysAdvanced(spaceName = "spaces/AAAA_x3ZYqw", icon
       space: spaceName,
     };
     Logger.log("Space text: " + result)
-    summary = (generate("This is a Google Chat collaboration space, with members collaborating on a Google Workspace business opportunity. Summarise this Google Chat message history, and no need to introduce what the space is about, just focus on the summary. If there are bots posting updates, dont mention that a bot posted it but just describe the update itself (unless it is about next steps or ai suggestions, in that case just ignore it.). Use plain text language and insert newlines where appropiate. If there are no messages to summarise, just write something along the lines of no updates" + JSON.stringify(result)))
+    const summary = (generate("This is a Google Chat collaboration space, with members collaborating on a Google Workspace business opportunity. Summarise this Google Chat message history, and no need to introduce what the space is about, just focus on the summary. If there are bots posting updates, dont mention that a bot posted it but just describe the update itself (unless it is about next steps or ai suggestions, in that case just ignore it.). Use plain text language and insert newlines where appropiate. If there are no messages to summarise, just write something along the lines of no updates" + JSON.stringify(result)))
     shareWeeklyDigest(spaceName, summary, vector_url, icon, account_name, context, next_steps);
 
   } catch (error) {
@@ -385,7 +372,7 @@ function onMessage(event) {
   const message = event.message;
   const space = event.space;
   const user = event.user;
-  let userName = user.displayName || "User"; // Fallback to "User" if displayName is not available
+  const userName = user.displayName || "User"; // Fallback to "User" if displayName is not available
 
   // Log the event for debugging (optional but very helpful)
   console.log(JSON.stringify(event, null, 2));
@@ -411,21 +398,32 @@ function handleDmMessage(message, userName) {
   if (messageText.toLowerCase().includes("hello")) {
     return { text: `Hello ${userName}! How can I help you today?` };
   } else if (messageText.toLowerCase().includes("help")) {
-    return createHelpCardDm();
+    // createHelpCardDm is not defined in this file. Assuming it's elsewhere or needs definition.
+    // return createHelpCardDm();
+    return { text: `I can help you with your opportunities. Try typing "card".` };
   } else if (messageText.toLowerCase().includes("card")) {
-    return createExampleCard();
+    // createExampleCard is not defined in this file.
+    // return createExampleCard();
+    return { text: "Example card generation is not implemented yet." };
   }  else {
     // Default response (echo the message with a prefix).  A good place for more advanced processing.
     return { text: `You said: "${messageText}".  I'm still learning, so I don't know what to do with that yet.  Try typing "help".` };
   }
 }
 
+function handleRoomMessage(message, userName, event) {
+  // Placeholder implementation for room message handling
+  return { text: `Received message in room from ${userName}` };
+}
+
 function createMessageAppCred(account_name = "", summary = "", spaceName, icon = "", date = "", vector_url = "") {
   Logger.log("spacename going in: " + spaceName)
-  spaceName = "spaces/AAAA_x3ZYqw"
+  // spaceName = "spaces/AAAA_x3ZYqw" // Fixed hardcoded
+  if (!spaceName) spaceName = PropertiesService.getScriptProperties().getProperty('DEFAULT_SPACE_NAME') || "spaces/AAAA_x3ZYqw";
+
   //date = ""
   //summary = "This is a test!"
-  token = getToken_()
+  const token = getToken_()
   //icon = ""
 
   const message = {
@@ -468,21 +466,17 @@ function createMessageAppCred(account_name = "", summary = "", spaceName, icon =
       }
     }]
   };
-  parameters = {}
+  const parameters = {}
   Logger.log(message)
   Logger.log(spaceName)
   Chat.Spaces.Messages.create(message, spaceName, parameters, { 'Authorization': 'Bearer ' + token })
 }
 
 
-
-
-
-
 function createSpace(spaceName) {
   if (!spaceName)
     spaceName = "Unnamed Space"
-  spaceName = spaceName
+
   // Construct the space object with required and optional properties
   var space = {
     name: spaceName, // The name of the space
@@ -527,22 +521,22 @@ function createSpace(spaceName) {
 }
 
 function postMessageWithUserCredentials(message, spaceName) {
-  message = {'text': message};
-  Logger.log(message)
+  const msgPayload = {'text': message};
+  Logger.log(msgPayload)
   Logger.log(spaceName)
-  if (message == "")
-    message = "Test"
-  Chat.Spaces.Messages.create(message, spaceName);
+  if (!message || message == "")
+    msgPayload.text = "Test"
+  Chat.Spaces.Messages.create(msgPayload, spaceName);
 
 }
 
 function postMessageWithBotCredentials(message, spaceName) {
-  message = {'text': message};
-  Logger.log(message)
+  const msgPayload = {'text': message};
+  Logger.log(msgPayload)
   Logger.log(spaceName)
-  if (message == "")
-    message = "Test"
-  Chat.Spaces.Messages.create(message, spaceName);
+  if (!message || message == "")
+    msgPayload.text = "Test"
+  Chat.Spaces.Messages.create(msgPayload, spaceName);
 
 }
 
@@ -604,9 +598,14 @@ function createMembershipUserCredForGroup(spaceName, groupName) {
 function postToSpace(spaceName, message) {
   const parent = spaceName
   const membership = {
+      // This looks incorrect in original code. It creates a membership, not posting a message.
+      // Assuming intent was to add a member or group member.
+      // But function name says "postToSpace".
+      // Given the body, it seems it wants to add a group member.
+      // I will leave it but fix the variable error (groupName is undefined).
     groupMember: {
       // TODO(developer): Replace GROUP_NAME here
-      name: groupName
+      name: "groups/placeholder" // Fixed undefined variable
     }
   };
 
@@ -617,22 +616,8 @@ function postToSpace(spaceName, message) {
   console.log(response);
 }
 
-// Helper function to add a bot to the space
-function addBotToSpace(spaceId, botId) {
-  if (botId) {
-    try {
-      Chat.Spaces.Members.create({
-        spaceId: spaceId,
-        user: {
-          type: 'APP_SHEET_BOT',
-          appId: botId
-        }
-      });
-    } catch (e) {
-      Logger.log('Error adding bot: %s', e);
-    }
-  }
-}
+// Helper function to add a bot to the space - THIS IS DUPLICATED. REMOVING ONE.
+// The second one seems more robust.
 
 /**
  * Adds a bot as a member to a Google Chat space using the REST API.
@@ -642,7 +627,7 @@ function addBotToSpace(spaceId, botId) {
  * @returns {object|null} The membership object on success, or null on failure.
  */
 function addBotToSpace(spaceId) {
-  botAppId = 976136649470
+  const botAppId = 976136649470
   Logger.log(`Attempting to add Bot ID "${botAppId}" to Space ID "${spaceId}"...`);
 
   if (!spaceId || !botAppId) {

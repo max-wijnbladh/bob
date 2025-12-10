@@ -194,7 +194,8 @@ function compareSheets(sheet1, sheet2) {
 }
 
 function writeJsonToSheet(jsonData) {
-  const destinationSpreadsheet = SpreadsheetApp.openById('1thd7evH_xQ2yzM9TPO4xzWj_sqnoyKF_OarASQKkUYE');
+  const spreadsheetId = PropertiesService.getScriptProperties().getProperty('ACTIVITIES_SHEET_ID') || '1thd7evH_xQ2yzM9TPO4xzWj_sqnoyKF_OarASQKkUYE';
+  const destinationSpreadsheet = SpreadsheetApp.openById(spreadsheetId);
   const sheet = destinationSpreadsheet.getSheetByName("Feed");
   const dataToWrite = [[jsonData.id, jsonData.changeLog, new Date(), "FALSE"]];
   sheet.insertRows(2, dataToWrite.length);
@@ -206,46 +207,49 @@ function writeJsonToSheet(jsonData) {
 
 function copySheet(sheetID, tab) {
   // Get the source spreadsheet and sheet.
-  var sourceSpreadsheet = SpreadsheetApp.openById(sheetID);
-  var sourceSheet = sourceSpreadsheet.getSheetByName('Sheet1'); 
+  const sourceSpreadsheet = SpreadsheetApp.openById(sheetID);
+  const sourceSheet = sourceSpreadsheet.getSheetByName('Sheet1');
 
   // Get the destination spreadsheet and sheet.
-  var destinationSpreadsheet = SpreadsheetApp.openById('1thd7evH_xQ2yzM9TPO4xzWj_sqnoyKF_OarASQKkUYE'); 
-  var destinationSheet = destinationSpreadsheet.getSheetByName(tab); 
+  const destSpreadsheetId = PropertiesService.getScriptProperties().getProperty('ACTIVITIES_SHEET_ID') || '1thd7evH_xQ2yzM9TPO4xzWj_sqnoyKF_OarASQKkUYE';
+  const destinationSpreadsheet = SpreadsheetApp.openById(destSpreadsheetId);
+  const destinationSheet = destinationSpreadsheet.getSheetByName(tab);
 
   compareSheets(sourceSheet, destinationSheet)
-  processOpportunityChanges(sourceSheet, destinationSheet)
+  if (typeof processOpportunityChanges === 'function') {
+      processOpportunityChanges(sourceSheet, destinationSheet)
+  }
 
   // Get the last row and column of the source sheet.
-  var lastRow = sourceSheet.getLastRow();
-  var lastColumn = sourceSheet.getLastColumn();
+  const lastRow = sourceSheet.getLastRow();
+  const lastColumn = sourceSheet.getLastColumn();
 
   // Get the data from the source sheet.
-  var sourceRange = sourceSheet.getRange(1, 1, lastRow, lastColumn);
-  var dataToCopy = sourceRange.getValues();
+  const sourceRange = sourceSheet.getRange(1, 1, lastRow, lastColumn);
+  const dataToCopy = sourceRange.getValues();
 
   // Copy the data to the destination sheet.
-  var destinationRange = destinationSheet.getRange(1, 1, lastRow, lastColumn);
+  const destinationRange = destinationSheet.getRange(1, 1, lastRow, lastColumn);
   destinationRange.setValues(dataToCopy);
 }
 
 function extractRowsByPastDays(sheet, days) {
   // Calculate the date "days" ago.
-  var today = new Date();
-  var dateToCompare = new Date();
+  const today = new Date();
+  const dateToCompare = new Date();
   dateToCompare.setDate(today.getDate() - days);
 
   // Get the data range.
-  var dataRange = sheet.getDataRange();
-  var values = dataRange.getValues();
+  const dataRange = sheet.getDataRange();
+  const values = dataRange.getValues();
   Logger.log(values)
 
   // Array to store the extracted rows.
-  var extractedRows = [];
+  const extractedRows = [];
 
   // Iterate through the rows and extract the ones matching the date range.
-  for (var i = 1; i < values.length; i++) { // Start from 1 to skip the header row
-    var rowDate = new Date(values[i][2]); // Assuming the date is in the first column (index 0)
+  for (let i = 1; i < values.length; i++) { // Start from 1 to skip the header row
+    const rowDate = new Date(values[i][2]); // Assuming the date is in the first column (index 0)
     Logger.log(rowDate)
     // Compare the dates (ignoring time)
     if (rowDate.setHours(0,0,0,0) >= dateToCompare.setHours(0,0,0,0)) {
@@ -258,8 +262,9 @@ function extractRowsByPastDays(sheet, days) {
 }
 
 function updateSheet() {
-  copySheet(getLatestSheetId("title contains 'Opportunities mawi@'"), "Opportunities")
-  copySheet(getLatestSheetId("title contains 'Activities mawi@'"), "Activities")
+  const userEmail = Session.getActiveUser().getEmail();
+  copySheet(getLatestSheetId("title contains 'Opportunities " + userEmail + "'"), "Opportunities")
+  copySheet(getLatestSheetId("title contains 'Activities " + userEmail + "'"), "Activities")
   return true
 }
 
@@ -267,9 +272,9 @@ function updateSheet() {
 function getLatestSheetId(title) {
   // Search for files shared with you that contain "Opportunities + Activities" in the name
   //title = "title contains 'Opportunities @mawi'"
-  var files = DriveApp.searchFiles(title)
+  const files = DriveApp.searchFiles(title)
   // Convert the FileIterator to an array
-  var filesArray = [];
+  const filesArray = [];
   while (files.hasNext()) {
     filesArray.push(files.next());
   }
@@ -281,8 +286,8 @@ function getLatestSheetId(title) {
 
   // Get the ID of the first file (the latest one).
   if (filesArray.length > 0) {
-    var file = filesArray[0];
-    var fileId = file.getId();
+    const file = filesArray[0];
+    const fileId = file.getId();
     Logger.log('The ID of the latest sheet is: ' + fileId);
     return fileId;
   } else {
@@ -294,18 +299,21 @@ function getLatestSheetId(title) {
 function getActivities(date) {
   if (!date)
     date = 7
-  var ss = SpreadsheetApp.openById("1thd7evH_xQ2yzM9TPO4xzWj_sqnoyKF_OarASQKkUYE");
-  var sheet = ss.getSheetByName("Activities");
+  const spreadsheetId = PropertiesService.getScriptProperties().getProperty('ACTIVITIES_SHEET_ID') || '1thd7evH_xQ2yzM9TPO4xzWj_sqnoyKF_OarASQKkUYE';
+  const ss = SpreadsheetApp.openById(spreadsheetId);
+  const sheet = ss.getSheetByName("Activities");
   Logger.log(sheet)
-  activities = extractRowsByPastDays(sheet, date)
+  const activities = extractRowsByPastDays(sheet, date)
   Logger.log(activities)
-  if (activities != [])
-  return (generate("Generate a summary of the activities from the past two weeks: " + activities))
+  if (activities.length > 0)
+    return (generate("Generate a summary of the activities from the past two weeks: " + activities))
+  return "No activities found."
 }
 
 function processOpportunities() {
   // Get the active spreadsheet and sheet.
-  const ss = SpreadsheetApp.openById("1thd7evH_xQ2yzM9TPO4xzWj_sqnoyKF_OarASQKkUYE"); // Replace with your actual spreadsheet ID
+  const spreadsheetId = PropertiesService.getScriptProperties().getProperty('ACTIVITIES_SHEET_ID') || '1thd7evH_xQ2yzM9TPO4xzWj_sqnoyKF_OarASQKkUYE';
+  const ss = SpreadsheetApp.openById(spreadsheetId); // Replace with your actual spreadsheet ID
   const sheet = ss.getSheetByName('Opportunities'); // Replace 'Custom' with your actual sheet name
 
   // Get the data range (assuming data starts from row 2).
@@ -313,7 +321,7 @@ function processOpportunities() {
   const data = dataRange.getValues();
 
   // Get the index of the opportunity_id column in the Custom sheet.
-  index = getOpportunityIdColumnIndex(sheet)
+  // index = getOpportunityIdColumnIndex(sheet) // Unused variable
   // If the column name is not found, return an error.
 
   // Iterate through each row in the data.
@@ -328,8 +336,8 @@ function processOpportunities() {
 }
 
 function getOpportunityIdColumnIndex(sheet) {
-  var headerRow = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]; // Get the first row (header row)
-  for (var i = 0; i < headerRow.length; i++) {
+  const headerRow = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]; // Get the first row (header row)
+  for (let i = 0; i < headerRow.length; i++) {
     if (headerRow[i] === "opportunities.opportunity_id" || headerRow[i].toLowerCase() === "opportunities.opportunity_id") { // Case-insensitive comparison
       return i; // Return the *zero-based* index
     }
@@ -338,7 +346,7 @@ function getOpportunityIdColumnIndex(sheet) {
 }
 
 function getOverview(activities,feed) {
-  overview = generate("Provide a overview of this Google Workspace opportunity that is easy to follow, using plaintext formatting and newlines: " + activities + feed)
+  const overview = generate("Provide a overview of this Google Workspace opportunity that is easy to follow, using plaintext formatting and newlines: " + activities + feed)
   return overview
 }
 
@@ -362,7 +370,8 @@ function generateCustomFields(opportunity_id) {
   Logger.log(summary);
 
   // Get the active spreadsheet and sheets.
-  const ss = SpreadsheetApp.openById("1thd7evH_xQ2yzM9TPO4xzWj_sqnoyKF_OarASQKkUYE");
+  const spreadsheetId = PropertiesService.getScriptProperties().getProperty('ACTIVITIES_SHEET_ID') || '1thd7evH_xQ2yzM9TPO4xzWj_sqnoyKF_OarASQKkUYE';
+  const ss = SpreadsheetApp.openById(spreadsheetId);
   const CustomSheet = ss.getSheetByName('Custom'); 
   const CustomData = CustomSheet.getDataRange().getValues();
 
@@ -387,7 +396,8 @@ function generateCustomFields(opportunity_id) {
 
 function setValueByOpportunityId(opportunityId, columnName, newValue) {
   // Get the active spreadsheet and sheet.
-  const ss = SpreadsheetApp.openById("1thd7evH_xQ2yzM9TPO4xzWj_sqnoyKF_OarASQKkUYE");
+  const spreadsheetId = PropertiesService.getScriptProperties().getProperty('ACTIVITIES_SHEET_ID') || '1thd7evH_xQ2yzM9TPO4xzWj_sqnoyKF_OarASQKkUYE';
+  const ss = SpreadsheetApp.openById(spreadsheetId);
   const sheet = ss.getSheetByName("Opportunities");
 
   // Get the data from the sheet (for finding column index).  We only need the header row.
@@ -419,7 +429,8 @@ function setValueByOpportunityId(opportunityId, columnName, newValue) {
 }
 
 function getOpportunityIdsByCondition(columnName, condition) {
-  const ss = SpreadsheetApp.openById("1thd7evH_xQ2yzM9TPO4xzWj_sqnoyKF_OarASQKkUYE");
+  const spreadsheetId = PropertiesService.getScriptProperties().getProperty('ACTIVITIES_SHEET_ID') || '1thd7evH_xQ2yzM9TPO4xzWj_sqnoyKF_OarASQKkUYE';
+  const ss = SpreadsheetApp.openById(spreadsheetId);
   const sheet = ss.getSheetByName("Opportunities");
   const headerRow = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues();
   const columnIndex = headerRow.indexOf(columnName);
@@ -449,7 +460,8 @@ function getOpportunityIdsByCondition(columnName, condition) {
 
 function getValueByOpportunityId(opportunityId, columnName) {
   // Get the active spreadsheet and sheet.
-  const ss = SpreadsheetApp.openById("1thd7evH_xQ2yzM9TPO4xzWj_sqnoyKF_OarASQKkUYE")
+  const spreadsheetId = PropertiesService.getScriptProperties().getProperty('ACTIVITIES_SHEET_ID') || '1thd7evH_xQ2yzM9TPO4xzWj_sqnoyKF_OarASQKkUYE';
+  const ss = SpreadsheetApp.openById(spreadsheetId)
   const sheet = ss.getSheetByName("Opportunities");
   Logger.log(sheet)
 
@@ -479,7 +491,8 @@ function getValueByOpportunityId(opportunityId, columnName) {
 
 function getActivitySummary(opportunity_id) {
   // Assuming your activity data is in a sheet named "Activities"
-  const ss = SpreadsheetApp.openById("1thd7evH_xQ2yzM9TPO4xzWj_sqnoyKF_OarASQKkUYE")
+  const spreadsheetId = PropertiesService.getScriptProperties().getProperty('ACTIVITIES_SHEET_ID') || '1thd7evH_xQ2yzM9TPO4xzWj_sqnoyKF_OarASQKkUYE';
+  const ss = SpreadsheetApp.openById(spreadsheetId)
   const sheet = ss.getSheetByName("Activities");
   Logger.log(sheet)
   if (!opportunity_id) {
@@ -517,7 +530,7 @@ function getActivitySummary(opportunity_id) {
     }
   }
   Logger.log(activityDetails)
-  nextStepsSummary = generate("These logs shows activities related to an ongoing Google Workspace business opportunity with a given id, summarise the activities so far with no intro tex, in natural language and without asterixes: " + JSON.stringify(activityDetails))
+  const nextStepsSummary = generate("These logs shows activities related to an ongoing Google Workspace business opportunity with a given id, summarise the activities so far with no intro tex, in natural language and without asterixes: " + JSON.stringify(activityDetails))
   const CustomSheet = ss.getSheetByName('Custom'); 
   const CustomData = CustomSheet.getDataRange().getValues();
 
@@ -546,7 +559,7 @@ function getActivitySummary(opportunity_id) {
 
 function getNextSteps(next_steps, next_steps_ce , summary) {
 
-  nextSteps = generate("I will provide you with the next steps for a Google Workspace opportunity from the business side: " + next_steps + " and the technical side: + " + next_steps_ce + " and a summary of the deal itself: " + summary + ". Summarise these next steps, and dont generate anything unrelated to the requested summary such as an intro text, use plaintext formatting with newlines:")
+  const nextSteps = generate("I will provide you with the next steps for a Google Workspace opportunity from the business side: " + next_steps + " and the technical side: + " + next_steps_ce + " and a summary of the deal itself: " + summary + ". Summarise these next steps, and dont generate anything unrelated to the requested summary such as an intro text, use plaintext formatting with newlines:")
   Logger.log(nextSteps)
   return nextSteps
 }

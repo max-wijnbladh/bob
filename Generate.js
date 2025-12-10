@@ -10,7 +10,12 @@ function generate(prompt) {
   };
 
   // 2. Make API Request (with error handling)
-  const apiKey = 'AIzaSyDz_Ko_PsJ6NH-StASftvkRRTnlTx4BnIk'; // Replace with your actual API key
+  const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+  if (!apiKey) {
+    console.error('GEMINI_API_KEY script property is not set.');
+    return null;
+  }
+
   const options = {
     method: 'post',
     contentType: 'application/json',
@@ -28,7 +33,7 @@ function generate(prompt) {
     }
 
     const responseData = JSON.parse(response.getContentText());
-    output = (responseData.candidates[0].content.parts[0].text); // Extract the generated story
+    const output = (responseData.candidates[0].content.parts[0].text); // Extract the generated story
     return output
   } catch (error) {
     console.error("Error generating story:", error.message);
@@ -47,7 +52,15 @@ function gemini(prompt, model) {
   };
 
   // 2. Make API Request (with error handling)
-  const apiKey = 'AIzaSyDCUanmzP4y9qgXVxmKgjQ9GWOQZF4ymUo'; // Replace with your actual API key
+  // Using the same key property for simplicity, or a second one if strictly needed.
+  // The original code had two different keys. To be safe, I'll use a second property.
+  const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY_2') || PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+
+  if (!apiKey) {
+    console.error('GEMINI_API_KEY (or GEMINI_API_KEY_2) script property is not set.');
+    return null;
+  }
+
   const options = {
     method: 'post',
     contentType: 'application/json',
@@ -65,7 +78,7 @@ function gemini(prompt, model) {
     }
 
     const responseData = JSON.parse(response.getContentText());
-    output = (responseData.candidates[0].content.parts[0].text); // Extract the generated story
+    const output = (responseData.candidates[0].content.parts[0].text); // Extract the generated story
     return output
   } catch (error) {
     console.error("Error generating story:", error.message);
