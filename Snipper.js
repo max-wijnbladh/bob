@@ -35,60 +35,81 @@ function didMawiAttend(attendees) {
 
 
 function getMyMeetings(days) {
-  //enter username here
-  var ldap = "mawi";
-  var calendarId = ldap.concat('@google.com');
-  if (days = null)
-    days = 7
+   //enter username here
+   var ldap = "mawi";
+   var calendarId = ldap.concat('@google.com');
 
-  //define the time interval to fetch meetings from
-  var toDate =  (new Date()).toISOString();
-  var fromDate = (new Date(new Date().getTime() - (7 * 24 * 60 * 60 * 1000))).toISOString(); // Use 'days' to calculate fromDate
-  Logger.log(toDate)
-  Logger.log(fromDate)
+   // Corrected the assignment operator to a comparison operator
+   if (days == null) {
+     days = 7;
+   }
 
-  var optionalArgs = {
-    timeMax: toDate,
-    timeMin: fromDate,
-    showDeleted: false,
-    singleEvents: true,
-    maxResults: 2000,
-    orderBy: 'startTime'
-  };
+   //define the time interval to fetch meetings from
+   var toDate = (new Date()).toISOString();
+   var fromDate = (new Date(new Date().getTime() - (days * 24 * 60 * 60 * 1000))).toISOString(); // Use 'days' to calculate fromDate
+   Logger.log("Fetching meetings from: " + fromDate + " to " + toDate);
 
-  var response = Calendar.Events.list(calendarId, optionalArgs);
-  var events = response.items;
-  var meetings = [];
+   var optionalArgs = {
+     timeMax: toDate,
+     timeMin: fromDate,
+     showDeleted: false,
+     singleEvents: true,
+     maxResults: 2000,
+     orderBy: 'startTime'
+   };
 
-  if (events.length > 0) {
-    for (i = 0; i < events.length; i++) {
-      var event = events[i];
-      if (event.summary != undefined && !event.summary.includes("Holiday") && !event.summary.includes("OOO") && event.attendees) {
-        if (didMawiAttend(event.attendees) == true) {
-          // Access event details.
-          var title = event.summary;
-          var startTime = event.start.dateTime || event.start.date;
-          var endTime = event.end.dateTime || event.end.date;
-          var description = event.description;
-          var attendees = event.attendees;
+   var response = Calendar.Events.list(calendarId, optionalArgs);
+   var events = response.items;
+   var meetings = [];
 
-          // Add event details to the meetings array.
-          meetings.push({
-            title: title,
-            startTime: startTime,
-            endTime: endTime,
-            description: description,
-            attendees: attendees.toString()
-          });
-        }
-      }
-    }
-  }
+   if (events && events.length > 0) {
+     for (var i = 0; i < events.length; i++) {
+       var event = events[i];
+       if (event.summary && !event.summary.includes("Holiday") && !event.summary.includes("OOO") && event.attendees) {
+         if (didMawiAttend(event.attendees)) {
+           var title = event.summary;
+           var startTime = event.start.dateTime || event.start.date;
+           var endTime = event.end.dateTime || event.end.date;
 
-  Logger.log(meetings);
-  return JSON.stringify(meetings);
-}
+           // --- START: New logic to fetch notes from Gmail ---
 
+           var meetingDate = new Date(startTime);
+           // Formats the date to match the email subject, e.g., "Aug 13, 2025"
+           var formattedDate = Utilities.formatDate(meetingDate, Session.getScriptTimeZone(), "MMM d, yyyy");
+
+           // Construct the search query to find the notes email
+           var searchQuery = `subject:("Notes: \\"${title}\\" ${formattedDate}") in:inbox`;
+           Logger.log(`Searching for email with query: ${searchQuery}`);
+
+           var threads = GmailApp.search(searchQuery, 0, 1);
+           var notes = "No summary email was found."; // Default text if no notes are found
+
+           if (threads.length > 0) {
+             var message = threads[0].getMessages()[0]; // Get the first message of the first thread
+             notes = message.getPlainBody(); // Extract the plain text body of the email
+             Logger.log(`Found notes for meeting: "${title}"`);
+           } else {
+             Logger.log(`No notes email found for meeting: "${title}"`);
+           }
+           // --- END: New logic ---
+
+           // Add event details to the meetings array, including the notes.
+           meetings.push({
+             title: title,
+             startTime: startTime,
+             endTime: endTime,
+             description: event.description,
+             attendees: event.attendees.map(a => a.email).join(', '), // Cleaner attendee list
+             notes: notes // Add the extracted notes or default text
+           });
+         }
+       }
+     }
+   }
+
+   Logger.log("Final meetings object with notes: " + JSON.stringify(meetings));
+   return JSON.stringify(meetings);
+ }
 function getRecentlyUpdatedTasks(days) {
   const taskLists = Tasks.Tasklists.list().getItems();
   const recentTasks = [];

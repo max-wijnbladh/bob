@@ -1,4 +1,80 @@
 /**
+ * Finds a Google Chat space by its display name. If it doesn't exist, it creates one.
+ * It then returns the ID of the found or newly created space.
+ *
+ * @param {string} spaceName The display name of the Google Chat space to find or create.
+ * @returns {string|null} The space ID (e.g., "spaces/AAAA...") of the space, or null if it couldn't be found or created.
+ */
+function findOrCreateChatSpace(spaceName = "NewSpace!") {
+  Logger.log(`--- Starting findOrCreateChatSpace for: "${spaceName}" ---`);
+
+  if (!spaceName || typeof spaceName !== 'string' || spaceName.trim() === '') {
+    Logger.log("ERROR: A valid spaceName string must be provided.");
+    return null;
+  }
+  
+  // 1. First, try to find the space.
+  let spaceId = findChatSpaceIdByName(spaceName);
+
+  // 2. If the spaceId is found (not null), return it immediately.
+  if (spaceId) {
+    Logger.log(`Space already exists. Returning existing ID: ${spaceId}`);
+    return spaceId;
+  }
+  
+  // 3. If the spaceId was null, it means the space doesn't exist. So, create it.
+  Logger.log(`Space not found. Proceeding to create it...`);
+  const newSpaceId = createSpace(spaceName);
+  Utilities.sleep(10000);
+  lockDownSpacePermissions(spaceName);
+  
+  // 4. Return the ID of the newly created space (or null if creation failed).
+  return newSpaceId;
+}
+
+
+// ====================================================================
+// HELPER FUNCTIONS (These are required by findOrCreateChatSpace)
+// ====================================================================
+
+/**
+ * Helper to find a space by name using the REST API.
+ * @param {string} displayName The display name of the space to find.
+ * @returns {string|null} The space ID or null.
+ */
+function findChatSpaceIdByName(displayName) {
+  Logger.log(`Searching for Chat space named: "${displayName}"`);
+  try {
+    const token = ScriptApp.getOAuthToken();
+    const options = { method: "GET", headers: { Authorization: "Bearer " + token }, muteHttpExceptions: true };
+    let foundSpaceId = null; let pageToken = null;
+    do {
+      let url = "https://chat.googleapis.com/v1/spaces?pageSize=1000";
+      if (pageToken) url += "&pageToken=" + pageToken;
+      const response = UrlFetchApp.fetch(url, options);
+      if (response.getResponseCode() !== 200) throw new Error(`Failed to fetch spaces. Code: ${response.getResponseCode()}`);
+      const data = JSON.parse(response.getContentText());
+      if (data.spaces) {
+        const matchingSpace = data.spaces.find(space => space.displayName === displayName);
+        if (matchingSpace) {
+          foundSpaceId = matchingSpace.name;
+          Logger.log(`SUCCESS: Found matching space. ID: ${foundSpaceId}`);
+          break;
+        }
+      }
+      pageToken = data.nextPageToken;
+    } while (pageToken);
+    if (!foundSpaceId) Logger.log(`INFO: No match found for "${displayName}".`);
+    return foundSpaceId;
+  } catch (e) {
+    Logger.log(`ERROR in findChatSpaceIdByName: ${e.message}`);
+    return null;
+  }
+}
+
+
+
+/**
  * Updates the description of a Google Chat space with opportunity information.
  *
  * @param {string} spaceName The name of the space to update (e.g., "spaces/xyz").
@@ -576,7 +652,7 @@ function postMessageWithBotCredentials(message, spaceName) {
 
 }
 
-function createMembershipUserCred(spaceName,ldap) {
+function createMembershipUserCred(spaceName = "spaces/AAAA0XsUhb4",ldap = "joakimtj") {
   const parent = spaceName
   const membership = {
     member: {
@@ -661,5 +737,135 @@ function addBotToSpace(spaceId, botId) {
     } catch (e) {
       Logger.log('Error adding bot: %s', e);
     }
+  }
+}
+
+/**
+ * Adds a bot as a member to a Google Chat space using the REST API.
+ *
+ * @param {string} spaceId The resource name of the space (e.g., "spaces/AAAA...").
+ * @param {string} botAppId The numerical App ID of the Google Chat bot to add.
+ * @returns {object|null} The membership object on success, or null on failure.
+ */
+function addBotToSpace(spaceId) {
+  botAppId = 976136649470
+  Logger.log(`Attempting to add Bot ID "${botAppId}" to Space ID "${spaceId}"...`);
+
+  if (!spaceId || !botAppId) {
+    Logger.log("Error: Both spaceId and botAppId are required.");
+    return null;
+  }
+
+  // The endpoint for creating a membership includes the space ID.
+  const url = `https://chat.googleapis.com/v1/${spaceId}/members`;
+
+  // The request body defines the member to be added.
+  // For a bot, the member name is always 'users/app'.
+  const requestBody = {
+    "member": {
+      "name": "users/app",
+      "type": "BOT"
+    }
+  };
+
+  const token = ScriptApp.getOAuthToken();
+  const options = {
+    'method': 'post',
+    'contentType': 'application/json',
+    'headers': {
+      'Authorization': 'Bearer ' + token
+    },
+    'payload': JSON.stringify(requestBody),
+    'muteHttpExceptions': true
+  };
+
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    const responseCode = response.getResponseCode();
+    const responseBody = response.getContentText();
+
+    if (responseCode === 200) {
+      const membership = JSON.parse(responseBody);
+      Logger.log(`SUCCESS: Bot added to space. Membership resource name: ${membership.name}`);
+      return membership;
+    } else {
+      // Common error: 409 CONFLICT means the bot is already a member. We can treat this as a success.
+      if (responseCode === 409) {
+        Logger.log(`INFO: Bot is already a member of the space (received 409 Conflict). Treating as success.`);
+        return { "status": "Already a member" };
+      }
+      Logger.log(`Error adding bot. Code: ${responseCode}. Response: ${responseBody}`);
+      return null;
+    }
+  } catch (e) {
+    Logger.log(`CRITICAL ERROR calling Chat Memberships API: ${e.message}\nStack: ${e.stack}`);
+    return null;
+  }
+}
+
+
+/**
+ * A test function to demonstrate how to use addBotToSpace.
+ */
+function testAddBotToSpace() {
+  // <<< !!! REPLACE WITH YOUR ACTUAL VALUES !!! >>>
+  const mySpaceId = "spaces/AAAA0XsUhb4";       // The ID of the space you want to add the bot to.
+  const myBotAppId = "976136649470";  // The numerical App ID of your bot.
+
+  if (mySpaceId === "spaces/AAAA..." || myBotAppId === "123456789012") {
+    Logger.log("Please update the placeholder values in testAddBotToSpace() before running.");
+    return;
+  }
+  
+  const result = addBotToSpace(mySpaceId, myBotAppId);
+
+  if (result) {
+    Logger.log("Test finished successfully.");
+    Logger.log(JSON.stringify(result, null, 2));
+  } else {
+    Logger.log("Test finished with an error.");
+  }
+}
+
+
+function lockDownSpacePermissions(spaceName = "spaces/AAQAwcYjp9A") {
+  Logger.log(`--- Locking down permissions for: ${spaceName} ---`);
+  
+  try {
+    // The updateMask now includes "replyMessages" for a more complete lockdown.
+    const updateMask = [
+      "permissionSettings.manageMembersAndGroups",
+    ].join(",");
+
+    const url = `https://chat.googleapis.com/v1/${spaceName}?updateMask=${updateMask}`;
+
+    const payload = {
+      "permissionSettings": {
+        "manageMembersAndGroups": { "managersAllowed": true, "membersAllowed": false },
+      }
+    };
+
+    const options = {
+      'method': 'PATCH',
+      'contentType': 'application/json',
+      'headers': {
+        'Authorization': 'Bearer ' + ScriptApp.getOAuthToken()
+      },
+      'payload': JSON.stringify(payload),
+      'muteHttpExceptions': true
+    };
+
+    const response = UrlFetchApp.fetch(url, options);
+
+    if (response.getResponseCode() === 200) {
+      Logger.log(`✅ SUCCESS: Permissions locked down for space ${spaceName}.`);
+      return true;
+    } else {
+      Logger.log(`ERROR: Failed to update permissions. Code: ${response.getResponseCode()}. Response: ${response.getContentText()}`);
+      return false;
+    }
+  } catch (e) {
+    Logger.log(`CRITICAL ERROR in lockDownSpacePermissions: ${e.message}`);
+    return false;
   }
 }

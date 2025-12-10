@@ -335,9 +335,11 @@ function deleteOldOpportunitySheets(filesToDelete) {
   return;
 }
 
-// ============================================================================
-// Main Orchestration Functions
-// ============================================================================
+/**
+ * ============================================================================
+ * Main Orchestration Functions
+ * ============================================================================
+ */
 
 function main_NEW() { // For Opportunities
   const SPREADSHEET_ID = '1thd7evH_xQ2yzM9TPO4xzWj_sqnoyKF_OarASQKkUYE';
@@ -357,6 +359,7 @@ function main_NEW() { // For Opportunities
     let sheet1_dest = ss.getSheetByName(DEST_SHEET_NAME);
     if (!sheet1_dest) { Logger.log(`ERROR: Dest sheet "${DEST_SHEET_NAME}" not found. Aborting.`); return; }
 
+    // Using the robust findLatestOpportunitySheet function
     const findResultOpps = findLatestOpportunitySheet(SOURCE_SHEET_PREFIX);
     const { latest: latestSourceFile, olderFiles } = findResultOpps;
     if (!latestSourceFile) { Logger.log(`INFO: No new source Opps sheet found.`); return; }
@@ -372,7 +375,7 @@ function main_NEW() { // For Opportunities
     if (!originalData || originalData.length < 2) {
       Logger.log(`WARN: Dest Opps sheet empty. Direct update.`);
       updateSheetData_NEW(sheet2_opps_source_raw_sheet_obj, sheet1_dest);
-      // deleteOldOpportunitySheets(olderFiles);
+      // deleteOldOpportunitySheets(olderFiles); // Trashing disabled
       Logger.log(`================ main_NEW (Opps) finished (empty dest) ================`); return;
     }
     const originalHeader = originalData[0];
@@ -388,43 +391,75 @@ function main_NEW() { // For Opportunities
     );
     Logger.log(`main_NEW: Opps Changes: ${Object.keys(changes).length} IDs, Removed: ${removedIds.size}.`);
     
-    // ======================= CORRECTED FEED PROCESSING BLOCK =======================
-    if (Object.keys(changes).length > 0) {
-      const oppsAppSheetFeedConfig = {
-        APP_ID: APPSHEET_APP_ID, TABLE_NAME: APPSHEET_TABLE_NAME, REGION: APPSHEET_REGION,
-        COL_ID: APPSHEET_COL_ID, COL_SUMMARY: APPSHEET_COL_SUMMARY,
-        COL_TIMESTAMP: APPSHEET_COL_TIMESTAMP, COL_PROCESSED: APPSHEET_COL_PROCESSED
-      };
+// ======================= REPLACEMENT FOR FEED PROCESSING BLOCK =======================
 
+    // --- Process Updates (for existing or new entries) ---
+    if (Object.keys(changes).length > 0) {
       for (const oppId in changes) {
         if (changes.hasOwnProperty(oppId)) {
+          // Skip removed entries here; they will be handled by the archive block below
+          if (removedIds.has(oppId)) continue; 
+          
           const changeEntries = changes[oppId];
-          let summary = "Opportunity Update";
-          if (changeEntries.length > 0) {
-            const firstEntry = changeEntries[0];
-            if (firstEntry.status) {
-              summary = `${firstEntry.status} (ID: ${oppId})`;
-            } else if (firstEntry.column) {
-               summary = `Opp ID ${oppId}: '${firstEntry.column}' changed.`;
+          const summaries = changeEntries.map(entry => {
+            if (entry.status) {
+              return `${entry.status} (ID: ${oppId})`;
+            } else if (entry.column) {
+              const changeDetails = { column: entry.column, from: entry.before, to: entry.after };
+              const prompt = `An opportunity was updated. Describe the following change in simple, natural language. For example, if the stage changes, say 'The stage moved to Proposal.' instead of just listing the values. Do not include what the value was previously, just the new status. Here is the change: ${JSON.stringify(changeDetails)}`;
+              return generate(prompt); // Your existing LLM call
             }
-          }
-          const dataForFeed = { id: oppId, changeLog: summary };
+            return '';
+          }).filter(s => s);
+
+          const finalSummary = summaries.join('; ');
+          const dataForFeed = { id: oppId, changeLog: finalSummary };
+          
+          Logger.log(`Feed Entry for ${oppId}: ${finalSummary}`);
           if (USE_APPSHEET_API_FOR_FEED) {
-            addRecordToAppSheet(dataForFeed, oppsAppSheetFeedConfig);
+            addRecordToAppSheet(dataForFeed, null); // Use default config
           } else {
             writeJsonToSheet_NEW(dataForFeed, SPREADSHEET_ID, 'Feed');
           }
         }
       }
     }
-    // ===============================================================================
+    
+    // --- NEW: HANDLE AND ARCHIVE REMOVED OPPORTUNITIES ---
+    if (removedIds && removedIds.size > 0) {
+      Logger.log(`--- Starting Archive Process for ${removedIds.size} Removed Opportunities ---`);
+      for (const removedId of removedIds) {
+        // 1. Get the final data of the opportunity before it was removed
+        const opportunityData = originalDataMap.get(removedId);
+        if (!opportunityData) {
+          Logger.log(`WARN: Could not find original data for removed ID '${removedId}'. Skipping archive.`);
+          continue;
+        }
+
+        // 2. Fetch its entire history from the AppSheet feed
+        const feedHistory = getFeedHistoryForOpportunity_(removedId);
+
+        // 3. Create the archive document
+        archiveRemovedOpportunity(removedId, opportunityData, originalHeader, feedHistory);
+        
+        // 4. Also add one final "Entry removed" message to the feed
+        const removalFeedData = { id: removedId, changeLog: `Entry removed: A final summary document has been archived.` };
+        if (USE_APPSHEET_API_FOR_FEED) {
+            addRecordToAppSheet(removalFeedData, null);
+        } else {
+            writeJsonToSheet_NEW(removalFeedData, SPREADSHEET_ID, 'Feed');
+        }
+      }
+      Logger.log(`--- Finished Archive Process ---`);
+    }
+// ===============================================================================
     
     if (USE_APPSHEET_API_FOR_FEED && removedIds && removedIds.size > 0) {
-       // Optional: configure and call deleteRowsById_NEW if needed
+       // Optional: configure and call deleteRowsById_NEW if you have a main AppSheet data table for Opps
     }
     
     updateSheetData_NEW(sheet2_opps_source_raw_sheet_obj, sheet1_dest);
-    // if (updateSuccess) deleteOldOpportunitySheets(olderFiles);
+    // if (updateSuccess) deleteOldOpportunitySheets(olderFiles); // Trashing disabled
 
     Logger.log(`================ main_NEW (Opps) finished [${new Date().toLocaleString()}] ================`);
   } catch (error) { Logger.log(`!!!!!!!!!! CRITICAL ERROR in main_NEW (Opps) !!!!!!!!!!\nError: ${error.message}\nStack: ${error.stack}`); }
@@ -541,4 +576,69 @@ function main_Activities_Full_Sync() {
   } catch (error) {
     Logger.log(`!!!!!!!!!! CRITICAL ERROR in main_Activities_Full_Sync !!!!!!!!!!\nError: ${error.message}\nStack: ${error.stack}`);
   }
+}
+
+/**
+ * ============================================================================
+ * --- TEST FUNCTION ---
+ * Use this to test the document creation process for a removed opportunity
+ * without affecting your actual data.
+ * ============================================================================
+ */
+function test_archiveRemovedOpportunity() {
+  Logger.log("--- Starting Test: archiveRemovedOpportunity ---");
+
+  // 1. --- MOCK DATA ---
+  // This data simulates what the main script would find for a removed opportunity.
+  // You can change these values to test with different scenarios.
+
+  const testOpportunityId = "Microsoft A/S";
+
+  // Simulate the header row from your 'Opportunities' sheet
+  const testHeader = [
+    "opportunities.opportunity_id",
+    "opportunities.stage_name",
+    "opportunities.owner.name",
+    "opportunities.amount",
+    "opportunities.close_date"
+  ];
+
+  // Simulate the data row for the removed opportunity
+  const testOpportunityData = [
+    "TEST-OPP-123",
+    "Closed Lost",
+    "Jane Smith",
+    75000,
+    new Date("2025-08-15")
+  ];
+
+  // Simulate the feed history that would be fetched from AppSheet
+  const testFeedHistory = [
+    {
+      "date": "2025-07-01T10:00:00.000Z",
+      "update": "New entry added (ID: TEST-OPP-123)"
+    },
+    {
+      "date": "2025-07-20T14:30:00.000Z",
+      "update": "The stage moved to Negotiation."
+    },
+    {
+      "date": "2025-08-14T09:15:00.000Z",
+      "update": "The stage moved to Closed Lost."
+    }
+  ];
+
+  // 2. --- RUN THE FUNCTION ---
+  // First, check if the required folder ID has been set.
+  if (ARCHIVE_FOLDER_ID === "PASTE_YOUR_ARCHIVE_FOLDER_ID_HERE" || !ARCHIVE_FOLDER_ID) {
+    Logger.log("⛔️ ERROR: Cannot run test. Please set the ARCHIVE_FOLDER_ID constant at the top of the script first.");
+    return;
+  }
+
+  Logger.log(`Calling archiveRemovedOpportunity with test data for ID: ${testOpportunityId}`);
+  archiveRemovedOpportunity(testOpportunityId, testOpportunityData, testHeader, testFeedHistory);
+
+  Logger.log("✅ --- Finished Test: archiveRemovedOpportunity ---");
+  Logger.log("Please check your designated archive folder in Google Drive.");
+  Logger.log("You should find a new document named 'Removed Opportunity Summary - TEST-OPP-123 - [today's date]'.");
 }

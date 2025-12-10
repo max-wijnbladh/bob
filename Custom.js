@@ -4,6 +4,75 @@
  * @param {string} docId The ID of the Google Document.
  * @return {string | null} The font family name as a string, or null/error message.
  */
+
+
+/**
+ * Makes a copy of a Google Sheet file, names it according to the customer,
+ * and returns the URL of the new copy.
+ *
+ * @param {string} sourceSpreadsheetId The ID of the Google Sheet file to copy.
+ * @param {string} customerName The name of the customer, used to create the new file name.
+ * @returns {string|null} The URL of the new spreadsheet, or null on failure.
+ */
+function copySpreadsheetAndGetUrl(sourceSpreadsheetId = "1lw_pwSzhbmAibI3_2AF3GPejRsAi5dgfwS5e6BGKoNQ", customerName) {
+  Logger.log(`Attempting to copy spreadsheet with ID: ${sourceSpreadsheetId} for customer: ${customerName}`);
+
+  if (!sourceSpreadsheetId) {
+    Logger.log("ERROR: sourceSpreadsheetId is required.");
+    return null;
+  }
+  if (!customerName) {
+    Logger.log("ERROR: customerName is required to name the new file.");
+    return null;
+  }
+
+  try {
+    // 1. Get the source file (your template) from Google Drive.
+    const sourceFile = DriveApp.getFileById(sourceSpreadsheetId);
+
+    // 2. Create the new file name using the customer name.
+    const newFileName = `${customerName} Google Workspace MEP`;
+    
+    // 3. Make a copy of the file with the new, specific name.
+    const newSpreadsheetCopy = sourceFile.makeCopy(newFileName);
+    
+    // 4. Get the URL of the newly created file.
+    const newUrl = newSpreadsheetCopy.getUrl();
+    
+    Logger.log(`Successfully created a copy named "${newFileName}".`);
+    Logger.log(`New spreadsheet URL: ${newUrl}`);
+    
+    // 5. Return the URL.
+    return newUrl;
+
+  } catch (e) {
+    Logger.log(`ERROR in copySpreadsheetAndGetUrl: ${e.message}`);
+    Logger.log(`Failed to copy file with ID: ${sourceSpreadsheetId}. Please ensure the ID is correct and you have permission to access it.`);
+    return null;
+  }
+}
+
+/**
+ * An example test function to show how to use the updated function.
+ */
+function testCopySheetWithCustomerName() {
+  // <<< !!! REPLACE WITH THE ID OF YOUR TEMPLATE SHEET !!! >>>
+  const TEMPLATE_SHEET_ID = "YOUR_TEMPLATE_SPREADSHEET_ID_HERE"; 
+  
+  // Define the customer name for this run.
+  const sampleCustomerName = "Acme Corporation";
+
+  // Call the main function with the template ID and the customer name.
+  const newSheetUrl = copySpreadsheetAndGetUrl(TEMPLATE_SHEET_ID, sampleCustomerName);
+
+  if (newSheetUrl) {
+    console.log(`✅ Success! The new sheet was created at: ${newSheetUrl}`);
+    // The new file in your Drive will be named "Acme Corporation Google Workspace MEP"
+  } else {
+    console.error("❌ Failure. The sheet could not be copied. Check the logs for details.");
+  }
+}
+
 function getFontNameFromGoogleDoc() {
 
 
@@ -114,13 +183,13 @@ function generateFields(description, opportunity_name, account, need, qualificat
       // For now, let's comment it out to ensure the main fix works first.
       const expandedResultString = cleanJSONString(generate("return a json object with the same structure, but expand on the strings/text in the fields and make the language more professional. Its supposed to go in a executive summary. For the returned fields, do not use any asterixes, bullet points signs, or any other special characters. only plaintext are regular newlines" + cleanedString, "gemini-2.0-flash")) 
       const expandedResultObject = JSON.parse(expandedResultString);
-      const documentUrl = createOrUpdateOpportunityDocument(expandedResultObject, opportunity_name);
+      //const documentUrl = createOrUpdateOpportunityDocument(expandedResultObject, opportunity_name);
 
-      if (documentUrl) {
-          resultObject.googleDocLink = documentUrl; // Add the doc link to the object
-      } else {
-          resultObject.googleDocLink = "Error creating/updating document.";
-      }
+      //if (documentUrl) {
+      //    resultObject.googleDocLink = documentUrl; // Add the doc link to the object
+      //} else {
+      //    resultObject.googleDocLink = "Error creating/updating document.";
+      //}
       
 
   } catch (e) {
@@ -191,16 +260,23 @@ function generateStructuredResponse(opportunityDetails, activities, nextStepsInp
 }
 
 /**
- * Creates or updates a Google Doc with revised formatting, new sections, and extensive logging.
- * V3: Removes horizontal lines, changes headline styles, adds description subtitle and account summary, uses Arial font.
+ * Creates or updates a Google Doc with opportunity data and ensures it resides in a specific folder.
  *
- * @param {object} opportunityData - Structured data including 'description' and 'account_summary'.
- * @param {string} opportunityId - The ID used for the document name.
- * @returns {string | null} - The URL of the doc, or null on error.
+ * @param {object} opportunityData The data object for the opportunity.
+ * @param {string} opportunityId The unique ID of the opportunity, used for the document name.
+ * @return {string|null} The URL of the created/updated document, or null on failure.
  */
 function createOrUpdateOpportunityDocument(opportunityData, opportunityId) {
-  const SCRIPT_VERSION = "V3_Refined";
+  const SCRIPT_VERSION = "V4_Folder_Specific";
+  
+  // --- CONFIGURATION ---
+  // <-- CHANGE 1: Specify your target folder's ID here.
+  // You can get the ID from the folder's URL in Google Drive.
+  // e.g., if URL is "https://drive.google.com/drive/folders/1a2b3c4d5e6f_GHIJK", the ID is "1a2b3c4d5e6f_GHIJK"
+  const TARGET_FOLDER_ID = "1rk6J3h0ywyFYo2NxPZadUpWUX9df_QT3?resourcekey=0--SoCggUlEdE_5qG5gHZKGg"; 
+  
   Logger.log(`[${SCRIPT_VERSION}] --- Starting createOrUpdateOpportunityDocument ---`);
+  Logger.log(`[${SCRIPT_VERSION}] Target Folder ID: '${TARGET_FOLDER_ID}'`);
   Logger.log(`[${SCRIPT_VERSION}] Received Opportunity ID for doc name: '${opportunityId}'`);
 
   if (!opportunityData || Object.keys(opportunityData).length === 0) {
@@ -216,8 +292,18 @@ function createOrUpdateOpportunityDocument(opportunityData, opportunityId) {
   let body;
 
   try {
-    Logger.log(`[${SCRIPT_VERSION}] Checking for existing document: '${docName}'`);
-    const existingFiles = DriveApp.getFilesByName(docName);
+    // <-- CHANGE 2: Get the folder object and validate it exists.
+    const folder = DriveApp.getFolderById(TARGET_FOLDER_ID);
+    if (!folder) {
+      Logger.log(`[${SCRIPT_VERSION}] CRITICAL ERROR: Target folder with ID '${TARGET_FOLDER_ID}' not found or you don't have access. Aborting.`);
+      throw new Error(`Target folder not found: ${TARGET_FOLDER_ID}`);
+    }
+    Logger.log(`[${SCRIPT_VERSION}] Successfully accessed target folder: '${folder.getName()}'`);
+
+    Logger.log(`[${SCRIPT_VERSION}] Checking for existing document named '${docName}' inside folder '${folder.getName()}'`);
+    // <-- CHANGE 3: Search for the file *within the specific folder*.
+    const existingFiles = folder.getFilesByName(docName);
+
     if (existingFiles.hasNext()) {
       const existingDocFile = existingFiles.next();
       doc = DocumentApp.openById(existingDocFile.getId());
@@ -227,19 +313,27 @@ function createOrUpdateOpportunityDocument(opportunityData, opportunityId) {
       body.clear();
       Logger.log(`[${SCRIPT_VERSION}] Body cleared.`);
     } else {
-      Logger.log(`[${SCRIPT_VERSION}] No existing document found. Creating new document: '${docName}'`);
+      Logger.log(`[${SCRIPT_VERSION}] No existing document found in folder. Creating new document: '${docName}'`);
+      // <-- CHANGE 4: Create the new document and immediately move it to the target folder.
+      // DocumentApp.create() always creates the doc in the root folder first.
       doc = DocumentApp.create(docName);
-      Logger.log(`[${SCRIPT_VERSION}] New document created. ID: ${doc.getId()}, URL: ${doc.getUrl()}`);
+      const newDocFile = DriveApp.getFileById(doc.getId());
+      
+      // Add the file to the target folder and remove it from the root.
+      folder.addFile(newDocFile);
+      DriveApp.getRootFolder().removeFile(newDocFile);
+      
+      Logger.log(`[${SCRIPT_VERSION}] New document created and moved to target folder. ID: ${doc.getId()}`);
       body = doc.getBody();
     }
 
     // --- Style Definitions with Arial Font ---
-    // Note: DocumentApp.FontFamily does not have 'OPEN_SANS'. Using ARIAL.
-    const FONT_FAMILY_UNIVERSAL = 'Google Sans'; // Using the string directly
+    // (The rest of your styling and content-appending logic remains unchanged)
+    const FONT_FAMILY_UNIVERSAL = 'Google Sans'; 
 
-    const THEME_COLOR_BLUE = '#1A73E8';    // Primary theme color for blue headlines
-    const TEXT_COLOR_BODY = '#3C4043';     // Dark grey for body text
-    const TEXT_COLOR_MAIN_TITLE = '#202124'; // Darker for the main document title
+    const THEME_COLOR_BLUE = '#1A73E8';    
+    const TEXT_COLOR_BODY = '#3C4043';     
+    const TEXT_COLOR_MAIN_TITLE = '#202124'; 
 
     const styles = {
       docMainTitle: {
@@ -251,31 +345,31 @@ function createOrUpdateOpportunityDocument(opportunityData, opportunityId) {
         [DocumentApp.Attribute.SPACING_BEFORE]: 0,
         [DocumentApp.Attribute.SPACING_AFTER]: 8,
       },
-      descriptionSubtitle: { // For the 'description' field content
+      descriptionSubtitle: {
         [DocumentApp.Attribute.FONT_SIZE]: 10,
         [DocumentApp.Attribute.FONT_FAMILY]: FONT_FAMILY_UNIVERSAL,
         [DocumentApp.Attribute.FOREGROUND_COLOR]: TEXT_COLOR_BODY,
         [DocumentApp.Attribute.ITALIC]: true,
         [DocumentApp.Attribute.HORIZONTAL_ALIGNMENT]: DocumentApp.HorizontalAlignment.CENTER,
-        [DocumentApp.Attribute.SPACING_AFTER]: 20, // Space after this overview block
+        [DocumentApp.Attribute.SPACING_AFTER]: 20,
       },
-      accountSummaryHeader: { // For "Account Summary" headline
+      accountSummaryHeader: {
         [DocumentApp.Attribute.BOLD]: true,
-        [DocumentApp.Attribute.FONT_SIZE]: 13, // Slightly smaller than main section headers
+        [DocumentApp.Attribute.FONT_SIZE]: 13,
         [DocumentApp.Attribute.FONT_FAMILY]: FONT_FAMILY_UNIVERSAL,
-        [DocumentApp.Attribute.FOREGROUND_COLOR]: THEME_COLOR_BLUE, // Bold and Blue
-        [DocumentApp.Attribute.SPACING_BEFORE]: 0, // Added space before this section in main flow
+        [DocumentApp.Attribute.FOREGROUND_COLOR]: THEME_COLOR_BLUE,
+        [DocumentApp.Attribute.SPACING_BEFORE]: 0,
         [DocumentApp.Attribute.SPACING_AFTER]: 4,
       },
-      accountSummaryParagraph: { // For the content of account_summary
+      accountSummaryParagraph: {
         [DocumentApp.Attribute.FONT_SIZE]: 10,
         [DocumentApp.Attribute.FONT_FAMILY]: FONT_FAMILY_UNIVERSAL,
         [DocumentApp.Attribute.FOREGROUND_COLOR]: TEXT_COLOR_BODY,
-        [DocumentApp.Attribute.SPACING_AFTER]: 16, // Space after account summary content
+        [DocumentApp.Attribute.SPACING_AFTER]: 16,
         [DocumentApp.Attribute.LINE_SPACING]: 1.4,
         [DocumentApp.Attribute.HORIZONTAL_ALIGNMENT]: DocumentApp.HorizontalAlignment.LEFT,
       },
-      executiveSummaryHeader: { // Bold and Blue
+      executiveSummaryHeader: {
         [DocumentApp.Attribute.BOLD]: true,
         [DocumentApp.Attribute.FONT_SIZE]: 16,
         [DocumentApp.Attribute.FONT_FAMILY]: FONT_FAMILY_UNIVERSAL,
@@ -283,12 +377,12 @@ function createOrUpdateOpportunityDocument(opportunityData, opportunityId) {
         [DocumentApp.Attribute.SPACING_BEFORE]: 6,
         [DocumentApp.Attribute.SPACING_AFTER]: 8,
       },
-      sectionHeader: { // Bold and Blue
+      sectionHeader: {
         [DocumentApp.Attribute.BOLD]: true,
         [DocumentApp.Attribute.FONT_SIZE]: 14,
         [DocumentApp.Attribute.FONT_FAMILY]: FONT_FAMILY_UNIVERSAL,
         [DocumentApp.Attribute.FOREGROUND_COLOR]: THEME_COLOR_BLUE,
-        [DocumentApp.Attribute.SPACING_BEFORE]: 12, // Added more space before general sections
+        [DocumentApp.Attribute.SPACING_BEFORE]: 12,
         [DocumentApp.Attribute.SPACING_AFTER]: 6,
       },
       paragraph: {
@@ -297,7 +391,7 @@ function createOrUpdateOpportunityDocument(opportunityData, opportunityId) {
         [DocumentApp.Attribute.FOREGROUND_COLOR]: TEXT_COLOR_BODY,
         [DocumentApp.Attribute.SPACING_AFTER]: 10,
         [DocumentApp.Attribute.LINE_SPACING]: 1.5,
-        [DocumentApp.Attribute.HORIZONTAL_ALIGNMENT]: DocumentApp.HorizontalAlignment.LEFT, // Changed from JUSTIFY for more natural web-doc feel
+        [DocumentApp.Attribute.HORIZONTAL_ALIGNMENT]: DocumentApp.HorizontalAlignment.LEFT,
       },
       bulletItem: {
         [DocumentApp.Attribute.FONT_SIZE]: 11,
@@ -310,11 +404,10 @@ function createOrUpdateOpportunityDocument(opportunityData, opportunityId) {
     const BULLET_INDENT_START = 36;
     const BULLET_INDENT_FIRST_LINE = 36;
 
-    Logger.log(`[${SCRIPT_VERSION}] Styles defined. Universal Font: Arial.`);
-
-    // Helper to safely set attributes
+    Logger.log(`[${SCRIPT_VERSION}] Styles defined.`);
+    
+    // --- Helper functions (unchanged) ---
     function applyStyle(paragraph, styleName, textContent = "N/A") {
-      // (This helper function remains the same as in V2, ensuring it logs and handles errors)
       const styleObject = styles[styleName];
       if (!paragraph) {
         Logger.log(`[${SCRIPT_VERSION}] ERROR: Attempted to apply style '${styleName}' to a null paragraph object. Text was: ${textContent}`);
@@ -325,55 +418,39 @@ function createOrUpdateOpportunityDocument(opportunityData, opportunityId) {
         return;
       }
       try {
-        Logger.log(`[${SCRIPT_VERSION}] Applying style '${styleName}' to paragraph with text starting: '${String(textContent).substring(0, 50)}...'`);
         paragraph.setAttributes(styleObject);
-        // Logger.log(`[${SCRIPT_VERSION}] Style '${styleName}' applied successfully.`); // Can be verbose
       } catch (e) {
-        Logger.log(`[${SCRIPT_VERSION}] CRITICAL ERROR applying style '${styleName}'. Error: ${e.message}. Style Object: ${JSON.stringify(styleObject)}. Paragraph text: '${textContent}'. Stack: ${e.stack}`);
+        Logger.log(`[${SCRIPT_VERSION}] CRITICAL ERROR applying style '${styleName}'. Error: ${e.message}.`);
         throw new Error(`Failed to apply style '${styleName}': ${e.message}`);
       }
     }
     
     function appendStyledParagraph(text, styleName) {
-        // (This helper function remains the same as in V2)
       const content = String(text || "Content not available.");
-    //   Logger.log(`[${SCRIPT_VERSION}] Appending paragraph with style '${styleName}', text: '${content.substring(0,100)}...'`); // Can be verbose
       const para = body.appendParagraph(content);
       applyStyle(para, styleName, content);
       return para;
     }
-
-    // --- Document Title ---
+    
+    // --- Document Population (unchanged) ---
     Logger.log(`[${SCRIPT_VERSION}] Appending document title.`);
     appendStyledParagraph(docName, 'docMainTitle');
 
-    // --- Description Subtitle ---
     const descriptionContent = opportunityData.description;
     if (descriptionContent && String(descriptionContent).trim() !== "") {
       Logger.log(`[${SCRIPT_VERSION}] Appending description subtitle.`);
       appendStyledParagraph(String(descriptionContent), 'descriptionSubtitle');
-    } else {
-      Logger.log(`[${SCRIPT_VERSION}] No description content provided for subtitle.`);
-      // Optionally append a placeholder or nothing
-      // appendStyledParagraph("Overview not available.", 'descriptionSubtitle');
     }
-    
-    // --- Account Summary Section ---
+
     const accountSummaryContent = opportunityData.account_summary;
     if (accountSummaryContent && String(accountSummaryContent).trim() !== "") {
       Logger.log(`[${SCRIPT_VERSION}] Appending Account Summary section.`);
       appendStyledParagraph("Account Summary", 'accountSummaryHeader');
       appendStyledParagraph(String(accountSummaryContent), 'accountSummaryParagraph');
-    } else {
-      Logger.log(`[${SCRIPT_VERSION}] No account_summary content provided.`);
     }
 
-
-    // --- Main Content Sections ---
-    // Helper function to append a section (NO HORIZONTAL RULES)
     function appendSection(headerText, contentKey, isBulletedList = false, isExecutiveSummary = false) {
       const rawContent = opportunityData[contentKey];
-      
       Logger.log(`[${SCRIPT_VERSION}] --- Section: ${headerText} ---`);
       const headerStyleName = isExecutiveSummary ? 'executiveSummaryHeader' : 'sectionHeader';
       appendStyledParagraph(headerText, headerStyleName);
@@ -381,7 +458,6 @@ function createOrUpdateOpportunityDocument(opportunityData, opportunityId) {
       if (rawContent !== null && rawContent !== undefined && String(rawContent).trim() !== "") {
         const contentStr = String(rawContent);
         if (isBulletedList) {
-          Logger.log(`[${SCRIPT_VERSION}] Appending bulleted list for '${headerText}'`);
           const items = contentStr.split('\n');
           items.forEach(itemText => {
             const trimmedItem = itemText.trim();
@@ -409,15 +485,15 @@ function createOrUpdateOpportunityDocument(opportunityData, opportunityId) {
     
     appendSection("Opportunity Overview", "overview");
     appendSection("Customer Need", "need");
-    appendSection("Proposed Benefits", "benefits", true); // true for bulleted list
+    appendSection("Proposed Benefits", "benefits", true); 
     appendSection("Timeline", "timeline");
     appendSection("Blockers and Status", "blockers");
-    appendSection("Activity Summary", "activitySummary", true); // true for bulleted list
+    appendSection("Activity Summary", "activitySummary", true);
     appendSection("Next Steps", "nextStepsSummary");
 
     Logger.log(`[${SCRIPT_VERSION}] Finished appending all sections.`);
 
-    // --- Save and Finalize ---
+    // --- Save and Finalize (unchanged) ---
     Logger.log(`[${SCRIPT_VERSION}] Attempting to save and close document.`);
     doc.saveAndClose();
     const docUrl = doc.getUrl();
@@ -425,7 +501,7 @@ function createOrUpdateOpportunityDocument(opportunityData, opportunityId) {
     return docUrl;
 
   } catch (error) {
-    Logger.log(`[${SCRIPT_VERSION}] !!!!! CRITICAL ERROR in createOrUpdateOpportunityDocument_V3 !!!!!`);
+    Logger.log(`[${SCRIPT_VERSION}] !!!!! CRITICAL ERROR in createOrUpdateOpportunityDocument !!!!!`);
     Logger.log(`[${SCRIPT_VERSION}] Error Message: ${error.message}`);
     Logger.log(`[${SCRIPT_VERSION}] Error Name: ${error.name}`);
     if (error.stack) {
@@ -433,9 +509,7 @@ function createOrUpdateOpportunityDocument(opportunityData, opportunityId) {
     }
     if (doc) {
       try {
-        Logger.log(`[${SCRIPT_VERSION}] Attempting to save and close document after error...`);
         doc.saveAndClose();
-        Logger.log(`[${SCRIPT_VERSION}] Document saved and closed after error. URL may be valid: ${doc.getUrl()}`);
       } catch (closeError) {
         Logger.log(`[${SCRIPT_VERSION}] Error trying to save/close document after main error: ${closeError.message}`);
       }
@@ -451,13 +525,13 @@ function getCustomJSON(opportunityDetails = "", activities = "", nextStepsInput 
 
   const desiredFields = {
     overview: "Generate an short overview, on this Google Workspace business opportunity, without any intro text, using plain text formatted natural language, newlines where appropriate, and no asterisks, and at most 260 characters:",
-    need: "Generate an summary of the business need, on this Google Workspace business opportunity, without any intro text, using plain text formatted natural language, newlines where appropriate, and no asterisks:",
+    need: "Generate an summary of the business need, on this Google Workspace business opportunity, without any intro text, using plain text formatted natural language, newlines where appropriate for readability, and no asterisks:",
     benefits: "What are the key benefits of Google Workspace for this customer to solve the need:",
     timeline: "Generate a timeline for when the customer is planning to take a decision / implement the project / other key dates",
     blockers: "Generate a short summary of any blockers that might exist with this opportunity and the current status and plan for it",
-    activitySummary: "These logs show activities related to an ongoing Google Workspace business opportunity. If there are no activities, just state that in the output. Otherwise, summarise the activities without any intro text, using plain text formatted natural language, newlines where appropriate, and no asterisks. It should be presented as a general timeline of what has been done in the project chronologically, without necessarily giving the date for every single activity but rather an overview",
-    nextStepsSummary: "I will provide you with the next steps for a Google Workspace opportunity from the business side: and the technical side: . Summarise these next steps as one joint next step overview without any intro text, using plain text formatted natural language, newlines where appropriate, and no asterisks:",
-    aiInsights: "Use the collective information you have about the opportunity as provided, and provide three suggestions on how to progress the opportunity, remove blockers or what to focus on to win the deal. Use plaintext formatting and no asterix or bullet point signs. Leverage the following knowledgebase to provide the suggestions you give (without referring to it explicitly): " + knowledge()
+    activitySummary: "These logs show activities related to an ongoing Google Workspace business opportunity. If there are no activities, just state that in the output. Otherwise, summarise the activities without any intro text, newlines where appropriate for readability, using plain text formatted natural language, newlines where appropriate, and no asterisks. It should be presented as a general timeline of what has been done in the project chronologically, newlines where appropriate for readability, without necessarily giving the date for every single activity but rather an overview",
+    nextStepsSummary: "I will provide you with the next steps for a Google Workspace opportunity from the business side: and the technical side: . Summarise these next steps as one joint next step overview without any intro text, using plain text formatted natural language, newlines for readability, and no asterisks:",
+    aiInsights: "Use the collective information you have about the opportunity as provided, and provide three suggestions on how to progress the opportunity, remove blockers or what to focus on to win the deal. Use plaintext formatting and no asterix or bullet point signs."
   };
 
   const response = generateStructuredResponse(

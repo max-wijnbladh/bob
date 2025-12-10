@@ -1,19 +1,34 @@
-function shareWeeklyDigest(spaceName, summary = "test", vector_url = "test", icon = "test", account_name = "test", context = "test", next_steps = "test", tips, execSummary){
-token = getToken_()
-Logger.log(spaceName)
-//spaceName = "spaces/AAAA_x3ZYqw"
-console.log("icon:", icon);
-console.log("summary:", summary);
-//summary = "Everyone was happy"
-console.log("vector_url:", vector_url);
-console.log("spaceName:", spaceName);
-suggestion = tips
+/**
+ * Shares a weekly digest card in a Google Chat space.
+ * @param {string} spaceName The resource name of the space to post to.
+ * @param {string} summary The AI-generated summary.
+ * @param {string} vector_url URL for the 'Vector' button.
+ * @param {string} icon URL for the header icon.
+ * @param {string} account_name The subtitle for the card header.
+ * @param {string} context Additional context (currently unused in the card).
+ * @param {string} next_steps The next steps text.
+ * @param {string} tips The tips from Gemini text.
+ * @param {string} execSummary URL for the 'Executive Summary' button.
+ * @param {string} overview The text for the new Overview section.
+ */
+function shareWeeklyDigest(spaceName = "spaces/AAAA_x3ZYqw", summary = "", vector_url = "test", icon = "test", account_name = "test", context = "test", next_steps = "test", tips, execSummary = "google.com", overview = "Test") {
+  const token = getToken_();
+  // spaceName = "spaces/AAAA_x3ZYqw" // Example for testing
+  console.log("overview:", overview);
+  console.log("icon:", icon);
+  console.log("summary:", summary);
+  console.log("vector_url:", vector_url);
+  console.log("spaceName:", spaceName);
+  const suggestion = tips;
+  Logger.log(summary)
 
+  if (summary == "") {
+  Logger.log("true")
+    return
+  }
 
-message =
-{
-  "cardsV2": [
-    {
+  const message = {
+    "cardsV2": [{
       "card": {
         "header": {
           "title": "Monday Recap",
@@ -21,89 +36,85 @@ message =
           "imageUrl": icon
         },
         "sections": [
+          // This is the new "Overview" section
           {
-            "header": "AI Summary",
+            "header": "Overview",
+            "widgets": [{
+              "textParagraph": {
+                "text": overview
+              }
+            }]
+          },
+          {
+            "header": "Recent updates",
             "collapsible": true,
             "uncollapsibleWidgetsCount": 1,
-            "widgets": [
-              {
-                "textParagraph": {
-                  "text": summary,
-                  "maxLines": 10
-                }
+            "widgets": [{
+              "textParagraph": {
+                "text": summary,
+                "maxLines": 10
               }
-            ]
+            }]
           },
           {
             "header": "Next steps",
             "collapsible": true,
             "uncollapsibleWidgetsCount": 1,
-            "widgets": [
-              {
-                "textParagraph": {
-                  "text": next_steps,
-                  "maxLines": 10
-                }
+            "widgets": [{
+              "textParagraph": {
+                "text": next_steps,
+                "maxLines": 10
               }
-            ]
+            }]
           },
           {
             "header": "Tips from Gemini",
             "collapsible": true,
             "uncollapsibleWidgetsCount": 1,
-            "widgets": [
-              {
-                "textParagraph": {
-                  "text": suggestion,
-                  "maxLines": 10
-                }
+            "widgets": [{
+              "textParagraph": {
+                "text": suggestion,
+                "maxLines": 10
               }
-            ]
+            }]
           },
           {
-            "widgets": [
-              {
-                "buttonList": {
-                  "buttons": [
-                    {
-                      "text": "Vector",
-                      "icon": {
-                        "knownIcon": "OPEN_IN_NEW"
-                      },
-                      "onClick": {
-                        "openLink": {
-                          "url": vector_url
-                        }
-                      }
-                    },
-                                        {
-                      "text": "Executive Summary",
-                      "icon": {
-                        "knownIcon": "DESCRIPTION"
-                      },
-                      "onClick": {
-                        "openLink": {
-                          "url": execSummary
-                        }
-                      }
+            "widgets": [{
+              "buttonList": {
+                "buttons": [{
+                  "text": "Vector",
+                  "icon": {
+                    "knownIcon": "OPEN_IN_NEW"
+                  },
+                  "onClick": {
+                    "openLink": {
+                      "url": vector_url
                     }
-                  ]
-                }
+                  }
+                }, {
+                  "text": "Executive Summary",
+                  "icon": {
+                    "knownIcon": "DESCRIPTION"
+                  },
+                  "onClick": {
+                    "openLink": {
+                      "url": execSummary
+                    }
+                  }
+                }]
               }
-            ]
+            }]
           }
         ]
       }
-    }
-  ]
-}
+    }]
+  };
 
-
-  parameters = {}
-  Logger.log(message)
-  Logger.log(spaceName)
-  Chat.Spaces.Messages.create(message, spaceName, parameters, { 'Authorization': 'Bearer ' + token })
-  return true
+  const parameters = {};
+  Chat.Spaces.Messages.create(message, spaceName, parameters, {
+    'Authorization': 'Bearer ' + token
+  });
+  return true;
 }
 
 
