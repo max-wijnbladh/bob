@@ -193,25 +193,6 @@ function compareSheets(sheet1, sheet2) {
   return compareSheetsAndLogChanges(sheet1, sheet2, columnsToTrack);
 }
 
-function testCompareSheets() {
-  const ss = SpreadsheetApp.openById("1thd7evH_xQ2yzM9TPO4xzWj_sqnoyKF_OarASQKkUYE");
-  const latestSheetId = getLatestSheetId("title contains 'Opportunities mawi@'");
-
-if (latestSheetId) {
-  const latestSpreadsheet = SpreadsheetApp.openById(latestSheetId);
-  const ss2 = latestSpreadsheet.getSheetByName("Opportunities");
-
-  // Now you can use 'ss2' (the Sheet object) in your code.
-  Logger.log(ss2.getName()); // Example: Log the sheet name.
-} else {
-  Logger.log("Latest sheet not found.");
-}
-  const sheet1 = ss.getSheetByName("Opportunities");
-  const sheet2 = ss2.getSheetByName("Sheet1");
-  const changes = compareSheets(sheet1,sheet2);
-  safeLog(JSON.stringify(changes, null, 2));
-}
-
 function writeJsonToSheet(jsonData) {
   const destinationSpreadsheet = SpreadsheetApp.openById('1thd7evH_xQ2yzM9TPO4xzWj_sqnoyKF_OarASQKkUYE');
   const sheet = destinationSpreadsheet.getSheetByName("Feed");

@@ -152,19 +152,3 @@ function compareSheetsAndLogChangesSimplified(sheet1, sheet2, columnsToTrack) {
     Logger.log(`Includes: ${columnsToTrack.includes(columnName)}`);
   }
 }
-
-function testSimplifiedCompare() {
-  const ss = SpreadsheetApp.openById("1thd7evH_xQ2yzM9TPO4xzWj_sqnoyKF_OarASQKkUYE");
-  const sheet1 = ss.getSheetByName("Opportunities");
-  const sheet2 = ss.getSheetByName(getLatestSheetId());
-  const columnsToTrack = [
-    "opportunities.forecast_category_name",
-    "opportunities.next_steps_ce",
-    "opportunities.next_step",
-    "opportunities.stage_name",
-    "opportunities.business_need",
-    "opportunities.deal_blocker",
-    "opportunities.next_steps_cetech_win"
-  ];
-  compareSheetsAndLogChangesSimplified(sheet1, sheet2, columnsToTrack);
-}

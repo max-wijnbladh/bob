@@ -1,5 +1,8 @@
 function getToken_() {
-  const accountEmail = 'bob-sa@mawi-bob.iam.gserviceaccount.com';
+  const accountEmail = PropertiesService.getScriptProperties().getProperty('SERVICE_ACCOUNT_EMAIL');
+  if (!accountEmail) {
+    throw new Error('Service account email not set. Please run setServiceAccountEmail(your_email) to set it.');
+  }
   const tokenResponse = UrlFetchApp.fetch(`https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${accountEmail}:generateAccessToken`,
     {
       method: 'post',
@@ -12,4 +15,9 @@ function getToken_() {
     });
   const token = JSON.parse(tokenResponse.getContentText());
   return token.accessToken;
+}
+
+function setServiceAccountEmail(email) {
+  PropertiesService.getScriptProperties().setProperty('SERVICE_ACCOUNT_EMAIL', email);
+  console.log('Service account email has been set.');
 }

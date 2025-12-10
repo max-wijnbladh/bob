@@ -154,53 +154,6 @@ function updateSpaceDescriptionWithOpportunityData(spaceName, opportunityData) {
   }
 }
 
-
-/**
- * Example usage: Updates a space description with sample opportunity data.
- */
-function testUpdateSpaceDescription() {
-  // Replace with your actual space name.
-  const spaceName = "spaces/AAAAgplQfbU"; // <-- *** REPLACE THIS WITH YOUR SPACE ID ***
-
-  // Sample opportunity data.  Replace with actual data from AppSheet.
-  const opportunityData = "Large enterprise deal"
-
-  const success = updateSpaceDescriptionWithOpportunityData(spaceName, opportunityData);
-
-  if (success) {
-    Logger.log("Space description updated successfully.");
-  } else {
-    Logger.log("Failed to update space description.");
-  }
-}
-
-
-/**
- * Example usage: Updates a space description with sample opportunity data.
- */
-function testUpdateSpaceDescription() {
-  // Replace with your actual space name.
-  const spaceName = "spaces/AAAAgplQfbU"; // <-- *** REPLACE THIS WITH YOUR SPACE ID ***
-
-  // Sample opportunity data.  Replace with actual data from AppSheet.
-  const opportunityData = {
-    name: "Large Enterprise Deal",
-    stage: "Negotiation",
-    value: 250000,
-    closeDate: "2025-03-15",
-    notes: "Customer is reviewing the contract.  Follow up next week.",
-  };
-
-  const success = updateSpaceDescriptionWithOpportunityData(spaceName, opportunityData);
-
-  if (success) {
-    Logger.log("Space description updated successfully.");
-  } else {
-    Logger.log("Failed to update space description.");
-  }
-}
-
-
 /**
  * Opens a Google Drive file by its ID and retrieves its content as a string,
  * handling different file types appropriately, using Apps Script Advanced Services.
@@ -275,23 +228,6 @@ function getDriveFileContentAdvanced(fileId) {
   }
 }
 
-/**
- * Example usage: Gets the content of a Drive file and logs it.
- */
-function testGetDriveFileContentAdvanced() {
-  // Replace with the actual Drive file ID.
-  const fileId = "1cTxvNbG66n76PbLc14YCYhbXjgcwfyB7VdPqJNexqms"; // <-- *** REPLACE THIS WITH YOUR FILE ID ***
-
-  const content = getDriveFileContentAdvanced(fileId);
-
-  if (content) {
-    Logger.log(content);
-  } else {
-    Logger.log("Could not retrieve file content.");
-  }
-}
-
-
   /**
  *  !!! IMPORTANT !!!  Enable the Google Drive API Advanced Service
  *
@@ -359,25 +295,6 @@ function getDriveFileIdFromRecentMessages(spaceName = "spaces/AAAADTV_G7g") {
     return null;
   }
 }
-
-
-
-/**
- * Example usage: Retrieves the Drive file ID from recent messages in a specific space and logs it.
- */
-function testGetDriveFileId() {
-  // Replace "spaces/YOUR_SPACE_ID" with the actual space ID.
-  const spaceId = "spaces/AAAADTV_G7g";  //  <-- *** REPLACE THIS WITH YOUR SPACE ID ***
-
-  const fileId = getDriveFileIdFromRecentMessages(spaceId);
-
-  if (fileId) {
-    Logger.log(`Drive File ID: ${fileId}`);
-  } else {
-    Logger.log("No Drive attachments found in the last 5 minutes, or an error occurred.");
-  }
-}
-
 
 /**
  *  !!! IMPORTANT !!!  Enable the Google Chat API Advanced Service
@@ -461,29 +378,6 @@ function getChatMessagesLast7DaysAdvanced(spaceName = "spaces/AAAA_x3ZYqw", icon
     return false;
   }
 }
-
-
-
-/**
- * Example usage:  Retrieves messages from a specific space and logs the JSON output.
- *  Be sure to authorize the script to access Google Chat before running.
- */
-function testGetChatMessages() {
-  // Replace "spaces/YOUR_SPACE_ID" with the actual space ID.
-  const spaceId = "spaces/YOUR_SPACE_ID";  //  <-- *** REPLACE THIS WITH YOUR SPACE ID ***
-
-  const messagesJson = getChatMessagesLast14Days(spaceId);
-
-  if (messagesJson) {
-    Logger.log(JSON.stringify(messagesJson, null, 2)); // Pretty-print the JSON.
-  } else {
-    Logger.log("No messages retrieved or an error occurred.");
-  }
-}
-
-
-
-
 
 
 function onMessage(event) {
@@ -802,31 +696,6 @@ function addBotToSpace(spaceId) {
     return null;
   }
 }
-
-
-/**
- * A test function to demonstrate how to use addBotToSpace.
- */
-function testAddBotToSpace() {
-  // <<< !!! REPLACE WITH YOUR ACTUAL VALUES !!! >>>
-  const mySpaceId = "spaces/AAAA0XsUhb4";       // The ID of the space you want to add the bot to.
-  const myBotAppId = "976136649470";  // The numerical App ID of your bot.
-
-  if (mySpaceId === "spaces/AAAA..." || myBotAppId === "123456789012") {
-    Logger.log("Please update the placeholder values in testAddBotToSpace() before running.");
-    return;
-  }
-  
-  const result = addBotToSpace(mySpaceId, myBotAppId);
-
-  if (result) {
-    Logger.log("Test finished successfully.");
-    Logger.log(JSON.stringify(result, null, 2));
-  } else {
-    Logger.log("Test finished with an error.");
-  }
-}
-
 
 function lockDownSpacePermissions(spaceName = "spaces/AAQAwcYjp9A") {
   Logger.log(`--- Locking down permissions for: ${spaceName} ---`);

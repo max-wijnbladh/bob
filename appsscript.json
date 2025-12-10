@@ -16,10 +16,10 @@
     "https://www.googleapis.com/auth/tasks",
     "https://www.googleapis.com/auth/documents",
     "https://www.googleapis.com/auth/presentations",
-  "https://www.googleapis.com/auth/gmail.readonly",
-  "https://www.googleapis.com/auth/calendar.readonly",
-  "https://www.googleapis.com/auth/chat.messages",
-  "https://www.googleapis.com/auth/gmail.modify"
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/calendar.readonly",
+    "https://www.googleapis.com/auth/chat.messages",
+    "https://www.googleapis.com/auth/gmail.modify"
   ],
   "timeZone": "Europe/Berlin",
   "dependencies": {
@@ -62,6 +62,9 @@
   "runtimeVersion": "V8",
   "webapp": {
     "executeAs": "USER_DEPLOYING",
+    "access": "MYSELF"
+  },
+  "executionApi": {
     "access": "MYSELF"
   }
 }
