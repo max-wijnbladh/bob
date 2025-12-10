@@ -8,7 +8,7 @@
 
 /**
  * Makes a copy of a Google Sheet file, names it according to the customer,
- * and returns the URL of the new copy.
+ * and returns the URL of the new spreadsheet.
  *
  * @param {string} sourceSpreadsheetId The ID of the Google Sheet file to copy.
  * @param {string} customerName The name of the customer, used to create the new file name.
@@ -73,11 +73,11 @@ function testCopySheetWithCustomerName() {
   }
 }
 
-function getFontNameFromGoogleDoc() {
+function getFontNameFromGoogleDoc(documentId) {
 
 
   try {
-    const doc = DocumentApp.openById("1HHsDJURtc3CssiTvBHKZHLieJVpkpPJZ0b-MBjmErs0");
+    const doc = DocumentApp.openById(documentId || "1HHsDJURtc3CssiTvBHKZHLieJVpkpPJZ0b-MBjmErs0");
     const body = doc.getBody();
     const paragraphs = body.getParagraphs();
 
@@ -545,33 +545,8 @@ function getCustomJSON(opportunityDetails = "", activities = "", nextStepsInput 
   return response;
 }
 
-function cleanJSONString2(jsonString) {
-  let cleanedString = jsonString.replace(/^```json\s*/, '');
-  cleanedString = cleanedString.slice(0, -4);
-  cleanedString = cleanedString.trim();
-
-  // Remove control characters (ASCII 0-31) except for \n, \r, \t.
-  cleanedString = cleanedString.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
-
-  // Remove various whitespace characters.
-  cleanedString = cleanedString.replace(/[\u200B-\u200F\uFEFF]/g, ''); // Zero-width spaces, BOM, etc.
-  cleanedString = cleanedString.replace(/\s+/g, ' '); // Replace multiple spaces with single space.
-
-  // Attempt to fix common formatting issues.
-  cleanedString = cleanedString.replace(/(\w+):/g, '"$1":'); // Quote keys.
-  cleanedString = cleanedString.replace(/'([^']+)'/g, '"$1"'); // Replace single quotes with double quotes.
-  cleanedString = cleanedString.replace(/,\s*}/g, '}'); // Remove trailing commas.
-  cleanedString = cleanedString.replace(/,\s*\]/g, ']'); // Remove trailing commas in arrays.
-
-  // Ensure it's wrapped in curly braces if needed.
-  if (!cleanedString.startsWith('{')) {
-    cleanedString = '{' + cleanedString + '}';
-  }
-
-  return cleanedString;
-}
-
 function cleanJSONString(jsonString) {
- const cleanedString = jsonString.replace(/^```json\s*/, '').slice(0, -4);
- return cleanedString;
+  if (typeof jsonString !== 'string') return "{}";
+  const cleanedString = jsonString.replace(/^```json\s*/, '').replace(/```$/, '');
+  return cleanedString.trim();
 }
