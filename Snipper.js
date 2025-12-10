@@ -143,7 +143,7 @@ function getActivities(date = 7) {
   var sheet = ss.getSheetByName("Activities");
   activities = extractRowsByPastDays(sheet, date)
   Logger.log(activities)
-  if (activities != [])
+  if (activities && activities.length > 0)
   return (generate("Generate a summary of the activities from the past two weeks: " + activities))
 }
 

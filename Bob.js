@@ -299,7 +299,7 @@ function getActivities(date) {
   Logger.log(sheet)
   activities = extractRowsByPastDays(sheet, date)
   Logger.log(activities)
-  if (activities != [])
+  if (activities && activities.length > 0)
   return (generate("Generate a summary of the activities from the past two weeks: " + activities))
 }
 

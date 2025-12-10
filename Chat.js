@@ -617,23 +617,6 @@ function postToSpace(spaceName, message) {
   console.log(response);
 }
 
-// Helper function to add a bot to the space
-function addBotToSpace(spaceId, botId) {
-  if (botId) {
-    try {
-      Chat.Spaces.Members.create({
-        spaceId: spaceId,
-        user: {
-          type: 'APP_SHEET_BOT',
-          appId: botId
-        }
-      });
-    } catch (e) {
-      Logger.log('Error adding bot: %s', e);
-    }
-  }
-}
-
 /**
  * Adds a bot as a member to a Google Chat space using the REST API.
  *
@@ -641,8 +624,10 @@ function addBotToSpace(spaceId, botId) {
  * @param {string} botAppId The numerical App ID of the Google Chat bot to add.
  * @returns {object|null} The membership object on success, or null on failure.
  */
-function addBotToSpace(spaceId) {
-  botAppId = 976136649470
+function addBotToSpace(spaceId, botAppId) {
+  if (!botAppId) {
+    botAppId = 976136649470;
+  }
   Logger.log(`Attempting to add Bot ID "${botAppId}" to Space ID "${spaceId}"...`);
 
   if (!spaceId || !botAppId) {
