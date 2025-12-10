@@ -14,7 +14,7 @@ function getContentFromSheetUrl(url) {
 
   try {
     // Extract the Sheet ID from the URL
-    const sheetIdMatch = url.match(/\/d\/(.+?)\//);
+    const sheetIdMatch = url.match(/\\/d\\/(.+?)\\//);
     if (!sheetIdMatch || !sheetIdMatch[1]) {
       throw new Error("Could not extract a valid Sheet ID from the URL.");
     }
@@ -100,7 +100,7 @@ function generateAndCreateTechWinDoc(opportunityId, opportunityName, opportunity
       The MOST IMPORTANT information is the customer's direct input, which is provided here as JSON data from their collaborative Google Sheet. Use this as the primary source of truth for technical details, current/future state, challenges, etc.:
       ${customerContext || "No customer sheet data provided."}
 
-      Your entire response MUST be a single, valid JSON object and nothing else. Do not use markdown like \`\`\`json.
+      Your entire response MUST be a single, valid JSON object and nothing else. Do not use markdown like \\`\\`\\`json.
       
       The JSON object must have these exact keys: "executiveSummary", "solutionMapping", "architectureSummary".
 
@@ -160,38 +160,38 @@ function writeTechWinDocument(techWinData, opportunityName) {
       body = doc.getBody();
     }
 
-    // --- Define Styles ---
+    // --- Define Styles ---\
     const FONT_FAMILY = 'Inter';
+    const TABLE_BORDER_WIDTH = 0.5;
+    const TABLE_CELL_PADDING = 5;
+    const TABLE_FONT_SIZE = 10;
     const titleStyle = { [DocumentApp.Attribute.FONT_FAMILY]: FONT_FAMILY, [DocumentApp.Attribute.FONT_SIZE]: 18, [DocumentApp.Attribute.BOLD]: true, [DocumentApp.Attribute.SPACING_AFTER]: 12 };
     const h2Style = { [DocumentApp.Attribute.FONT_FAMILY]: FONT_FAMILY, [DocumentApp.Attribute.FONT_SIZE]: 14, [DocumentApp.Attribute.BOLD]: true, [DocumentApp.Attribute.SPACING_BEFORE]: 18, [DocumentApp.Attribute.SPACING_AFTER]: 6 };
     const paragraphStyle = { [DocumentApp.Attribute.FONT_FAMILY]: FONT_FAMILY, [DocumentApp.Attribute.FONT_SIZE]: 11 };
     
     // ===================================================================
-    // --- Helper function to apply detailed styles to a table ---
+    // --- Helper function to apply detailed styles to a table ---\
     function styleTable(table, columnWidths = []) {
       if (!table) return;
       
-      // --- Style definitions ---
+      // --- Style definitions ---\
       const headerBgColor = '#F3F3F3'; 
       const borderColor = '#DDDDDD';   
-      const borderWidth = 0.5;         
-      const cellPadding = 5;
-      const TABLE_FONT_SIZE = 10;
 
       const headerStyle = {
         [DocumentApp.Attribute.FONT_FAMILY]: FONT_FAMILY, [DocumentApp.Attribute.FONT_SIZE]: TABLE_FONT_SIZE,
         [DocumentApp.Attribute.BACKGROUND_COLOR]: headerBgColor, [DocumentApp.Attribute.BOLD]: true,
         [DocumentApp.Attribute.VERTICAL_ALIGNMENT]: DocumentApp.VerticalAlignment.MIDDLE,
-        [DocumentApp.Attribute.PADDING_TOP]: cellPadding, [DocumentApp.Attribute.PADDING_BOTTOM]: cellPadding,
-        [DocumentApp.Attribute.PADDING_LEFT]: cellPadding, [DocumentApp.Attribute.PADDING_RIGHT]: cellPadding,
-        [DocumentApp.Attribute.BORDER_WIDTH]: borderWidth, [DocumentApp.Attribute.BORDER_COLOR]: borderColor
+        [DocumentApp.Attribute.PADDING_TOP]: TABLE_CELL_PADDING, [DocumentApp.Attribute.PADDING_BOTTOM]: TABLE_CELL_PADDING,
+        [DocumentApp.Attribute.PADDING_LEFT]: TABLE_CELL_PADDING, [DocumentApp.Attribute.PADDING_RIGHT]: TABLE_CELL_PADDING,
+        [DocumentApp.Attribute.BORDER_WIDTH]: TABLE_BORDER_WIDTH, [DocumentApp.Attribute.BORDER_COLOR]: borderColor
       };
       const cellStyle = {
         [DocumentApp.Attribute.FONT_FAMILY]: FONT_FAMILY, [DocumentApp.Attribute.FONT_SIZE]: TABLE_FONT_SIZE,
         [DocumentApp.Attribute.BOLD]: false, [DocumentApp.Attribute.VERTICAL_ALIGNMENT]: DocumentApp.VerticalAlignment.TOP,
-        [DocumentApp.Attribute.PADDING_TOP]: cellPadding, [DocumentApp.Attribute.PADDING_BOTTOM]: cellPadding,
-        [DocumentApp.Attribute.PADDING_LEFT]: cellPadding, [DocumentApp.Attribute.PADDING_RIGHT]: cellPadding,
-        [DocumentApp.Attribute.BORDER_WIDTH]: borderWidth, [DocumentApp.Attribute.BORDER_COLOR]: borderColor
+        [DocumentApp.Attribute.PADDING_TOP]: TABLE_CELL_PADDING, [DocumentApp.Attribute.PADDING_BOTTOM]: TABLE_CELL_PADDING,
+        [DocumentApp.Attribute.PADDING_LEFT]: TABLE_CELL_PADDING, [DocumentApp.Attribute.PADDING_RIGHT]: TABLE_CELL_PADDING,
+        [DocumentApp.Attribute.BORDER_WIDTH]: TABLE_BORDER_WIDTH, [DocumentApp.Attribute.BORDER_COLOR]: borderColor
       };
       
       // <<< STEP 1: Apply all CELL-LEVEL styles first >>>
@@ -205,7 +205,7 @@ function writeTechWinDocument(techWinData, opportunityName) {
       }
       
       // <<< STEP 2: Apply TABLE-LEVEL column widths LAST >>>
-      if (columnWidths.length > 0 && columnWidths.length === table.getRow(0).getNumCells()) {
+      if (columnWidths.length > 0 && columnWidths.length === table..getRow(0).getNumCells()) {
         for (let i = 0; i < columnWidths.length; i++) {
           table.setColumnWidth(i, columnWidths[i]);
         }
@@ -214,12 +214,12 @@ function writeTechWinDocument(techWinData, opportunityName) {
     }
     // ===================================================================
 
-    // --- Build Document ---
+    // --- Build Document ---\
     body.appendParagraph(`Technical Win Strategy: ${opportunityName}`).setAttributes(titleStyle);
     body.appendParagraph("Executive Summary").setAttributes(h2Style);
     body.appendParagraph(techWinData.executiveSummary || "Not available.").setAttributes(paragraphStyle);
 
-    // --- Solution Mapping Table with Fixed Widths ---
+    // --- Solution Mapping Table with Fixed Widths ---\
     body.appendParagraph("Solution Mapping").setAttributes(h2Style);
     if (techWinData.solutionMapping && Array.isArray(techWinData.solutionMapping)) {
       const tableData = [['Business Challenges', 'Workspace Solution (Differentiated)']];
@@ -230,14 +230,14 @@ function writeTechWinDocument(techWinData, opportunityName) {
       body.appendParagraph("Solution mapping data not available.").setAttributes(paragraphStyle);
     }
 
-    // --- Architecture Summary Table with Fixed Widths ---
+    // --- Architecture Summary Table with Fixed Widths ---\
     body.appendParagraph("Architecture Summary").setAttributes(h2Style);
     if (techWinData.architectureSummary && Array.isArray(techWinData.architectureSummary)) {
       const tableData = [['Category', 'Current', 'Proposed', 'Risks']];
       techWinData.architectureSummary.forEach(item => {
-        const current = (item.current || 'N/A').replace(/<br>/g, '\n');
-        const proposed = (item.proposed || 'N/A').replace(/<br>/g, '\n');
-        const risks = (item.risks || 'N/A').replace(/<br>/g, '\n');
+        const current = (item.current || 'N/A').replace(/<br>/g, '\\n');
+        const proposed = (item.proposed || 'N/A').replace(/<br>/g, '\\n');
+        const risks = (item.risks || 'N/A').replace(/<br>/g, '\\n');
         tableData.push([item.category || 'N/A', current, proposed, risks]);
       });
       const table = body.appendTable(tableData);
@@ -252,7 +252,7 @@ function writeTechWinDocument(techWinData, opportunityName) {
     return doc.getUrl();
 
   } catch (e) {
-    Logger.log(`ERROR in writeTechWinDocument: ${e.message}\nStack: ${e.stack}`);
+    Logger.log(`ERROR in writeTechWinDocument: ${e.message}\\nStack: ${e.stack}`);
     return null;
   }
 }
@@ -269,6 +269,6 @@ function cleanJSONString(jsonString) {
   else if (cleanedString.startsWith("```")) cleanedString = cleanedString.substring(3);
   if (cleanedString.endsWith("```")) cleanedString = cleanedString.substring(0, cleanedString.length - 3);
   cleanedString = cleanedString.trim();
-  cleanedString = cleanedString.replace(/[\u0000-\u001F]/g, '');
+  cleanedString = cleanedString.replace(/[\\u0000-\\u001F]/g, '');
   return cleanedString;
 }

@@ -1,3 +1,24 @@
+// Copyright 2024 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/**
+ * @constant
+ * @type {string}
+ * @default
+ */
+const GEMINI_MODEL = 'gemini-1.5-flash';
+
 /**
  * Shares a weekly digest card in a Google Chat space.
  * 
@@ -95,7 +116,7 @@ function shareDigest(account_name, overview, icon, spaceName, activities, vector
   spaceName = spaceName || "spaces/AAAA_x3ZYqw";
 
   const prompt = `We have an ongoing Google Workspace business deal with a company. Based on the following details, provide a suggestion on how we can win the customer. Keep it concise, actionable, and formatted as plain text with double newlines. No intro text, just the suggestion: ${overview} ${next_steps} ${activities}`;
-  const suggestion = gemini(prompt, "gemini-2.0-flash-thinking-exp-01-21");
+  const suggestion = gemini(prompt, GEMINI_MODEL);
 
   const message = {
     cardsV2: [{
