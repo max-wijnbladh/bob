@@ -14,8 +14,9 @@ function generateSnippets(days = 7) {
 }
 
 function didMawiAttend(attendees) {
+  const userEmail = Session.getActiveUser().getEmail();
   for (const attendee of attendees) {
-    if (attendee.email === "mawi@google.com") {
+    if (attendee.email === userEmail) {
       const response = attendee.responseStatus.toLowerCase();
 
       // Google Calendar Specific Responses
@@ -36,8 +37,8 @@ function didMawiAttend(attendees) {
 
 function getMyMeetings(days) {
    //enter username here
-   var ldap = "mawi";
-   var calendarId = ldap.concat('@google.com');
+   var calendarId = Session.getActiveUser().getEmail();
+   var ldap = calendarId.split('@')[0];
 
    // Corrected the assignment operator to a comparison operator
    if (days == null) {
