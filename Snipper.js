@@ -1,3 +1,7 @@
+function main_Activities_Full_Sync() {
+  generateSnippets(7);
+}
+
 function generateSnippets(days = 7) {
   meetings = getMyMeetings(days); // Pass days to getMeetings()
 
