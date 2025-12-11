@@ -74,8 +74,8 @@ function didMawiAttend(attendees) {
  * @returns {Array<string>} A list of meetings with their details.
  */
 function getMeetings(days) {
-  const ldap = "mawi";
-  const calendarId = `${ldap}@google.com`;
+  const calendarId = Session.getActiveUser().getEmail();
+  const ldap = calendarId.split('@')[0];
   days = days || 7; // Default to 7 days if not provided.
 
   const toDate = (new Date()).toISOString();
